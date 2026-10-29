@@ -1,6 +1,6 @@
 # Arquitectura — Farmacia Lufar
 
-**Estado:** estructura inicial aprobada para la siguiente etapa de desarrollo.
+**Estado:** estructura inicial lista para la siguiente etapa de desarrollo.
 
 ## 1. Visión general
 
