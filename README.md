@@ -428,3 +428,4 @@ el paso a PostgreSQL si habrá varios usuarios concurrentes.
 - [ADR-002: User integrado y autorización por grupos](docs/adr/ADR-002-user-integrado-y-grupos.md)
 - [ADR-003: SQLite y operación local sin CDN](docs/adr/ADR-003-sqlite-local-sin-cdn.md)
 - [ADR-004: Proveedores dentro de compras](docs/adr/ADR-004-proveedores-en-compras.md)
+# Farmacia-Lufar
