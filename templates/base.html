@@ -49,9 +49,9 @@
 
     <main
       id="main-content"
-      class="{% if user.is_authenticated %}content{% else %}auth-shell{% endif %}"
+      class="{% block main_class %}{% if user.is_authenticated %}content{% else %}auth-shell{% endif %}{% endblock %}"
     >
-      <div class="{% if user.is_authenticated %}content__inner{% else %}auth-shell__inner{% endif %}">
+      <div class="{% block main_inner_class %}{% if user.is_authenticated %}content__inner{% else %}auth-shell__inner{% endif %}{% endblock %}">
         {% include "includes/messages.html" %}
         {% block content %}{% endblock %}
       </div>

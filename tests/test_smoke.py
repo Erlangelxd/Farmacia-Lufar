@@ -102,7 +102,11 @@ class InitialStructureTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertTemplateUsed(response, "registration/login.html")
         self.assertContains(response, "csrfmiddlewaretoken")
-        self.assertContains(response, "Inicia sesión")
+        self.assertContains(response, "Iniciar sesión")
+        self.assertContains(response, "login-page")
+        self.assertContains(response, "login-card")
+        self.assertNotContains(response, "cdn.tailwindcss.com")
+        self.assertNotContains(response, "lh3.googleusercontent.com")
 
         csrf_client = Client(enforce_csrf_checks=True)
         csrf_response = csrf_client.post(

@@ -2,19 +2,40 @@
 {% load static %}
 
 {% block title %}Iniciar sesión | Farmacia Lufar{% endblock %}
+{% block body_class %}auth-page login-body{% endblock %}
+{% block main_class %}login-page{% endblock %}
+{% block main_inner_class %}login-layout{% endblock %}
 
 {% block content %}
-  <section class="auth-card" aria-labelledby="login-title">
-    <div class="auth-card__brand">
-      <img src="{% static 'img/logo.svg' %}" alt="" width="48" height="48">
-      <span>Farmacia Lufar</span>
+  <section class="login-brand" aria-label="Farmacia Lufar">
+    <div class="login-brand__mark">
+      <img src="{% static 'img/logo.svg' %}" alt="" width="132" height="132">
     </div>
 
-    <p class="eyebrow">Sistema de gestión</p>
-    <h1 id="login-title">Inicia sesión</h1>
-    <p class="auth-card__intro">
-      Accede con tu usuario y contraseña para continuar.
-    </p>
+    <div class="login-brand__copy">
+      <p class="login-brand__eyebrow">Sistema de gestión</p>
+      <h1 class="login-brand__title">
+        <span class="login-brand__name">Farmacia</span>
+        <span class="login-brand__suffix">Lufar</span>
+      </h1>
+      <p class="login-brand__tagline">
+        Inventario, ventas y abastecimiento bajo control, en un solo lugar.
+      </p>
+    </div>
+  </section>
+
+  <section class="login-card" aria-labelledby="login-title">
+    <div class="login-card__emblem" aria-hidden="true">
+      <svg viewBox="0 0 24 24" width="34" height="34" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round">
+        <path d="M12 5v14M5 12h14"/>
+      </svg>
+    </div>
+
+    <header class="login-card__header">
+      <p class="eyebrow">Acceso al sistema</p>
+      <h2 id="login-title">Iniciar sesión</h2>
+      <p>Ingresa tus credenciales para acceder al sistema de Farmacia Lufar.</p>
+    </header>
 
     {% if form.non_field_errors %}
       <div class="alert alert--error" role="alert">
@@ -24,37 +45,49 @@
       </div>
     {% endif %}
 
-    <form class="auth-form" method="post" action="{% url 'accounts:login' %}" novalidate>
+    <form class="login-form" method="post" action="{% url 'accounts:login' %}" novalidate>
       {% csrf_token %}
       {% if next %}
         <input type="hidden" name="next" value="{{ next }}">
       {% endif %}
 
-      <div class="form-field">
-        <label for="{{ form.username.id_for_label }}">{{ form.username.label }}</label>
+      <div class="login-field">
+        <label class="sr-only" for="{{ form.username.id_for_label }}">{{ form.username.label }}</label>
+        <span class="login-field__icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="8" r="4"/>
+            <path d="M4.5 21a7.5 7.5 0 0 1 15 0"/>
+          </svg>
+        </span>
         {{ form.username }}
         {% for error in form.username.errors %}
           <p class="field-error">{{ error }}</p>
         {% endfor %}
       </div>
 
-      <div class="form-field">
-        <label for="{{ form.password.id_for_label }}">{{ form.password.label }}</label>
+      <div class="login-field">
+        <label class="sr-only" for="{{ form.password.id_for_label }}">{{ form.password.label }}</label>
+        <span class="login-field__icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="4" y="10" width="16" height="11" rx="2"/>
+            <path d="M8 10V7a4 4 0 0 1 8 0v3"/>
+          </svg>
+        </span>
         {{ form.password }}
         {% for error in form.password.errors %}
           <p class="field-error">{{ error }}</p>
         {% endfor %}
       </div>
 
-      <button class="btn btn--primary btn--block" type="submit">
-        Entrar al sistema
+      <button class="login-submit" type="submit">
+        <span>Ingresar</span>
+        <span class="login-submit__arrow" aria-hidden="true">→</span>
       </button>
     </form>
 
-    <p class="auth-card__help">
+    <p class="login-card__help">
       ¿No puedes acceder? Solicita apoyo al administrador del sistema.
     </p>
+    <p class="login-card__footnote">Farmacia Lufar · Sistema de gestión local</p>
   </section>
-
-  <p class="auth-footer">Farmacia Lufar · Sistema de gestión local</p>
 {% endblock %}
