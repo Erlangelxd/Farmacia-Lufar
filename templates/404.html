@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+
+{% block title %}Página no encontrada | Farmacia Lufar{% endblock %}
+
+{% block content %}
+  <section class="error-card card">
+    <span class="error-card__code">404</span>
+    <h1>Página no encontrada</h1>
+    <p>
+      La dirección que buscas no existe o fue movida. Verifica el enlace o
+      regresa al panel principal.
+    </p>
+    <div class="page-actions">
+      {% if user.is_authenticated %}
+        <a class="btn btn--primary" href="{% url 'core:dashboard' %}">
+          Volver al panel
+        </a>
+      {% else %}
+        <a class="btn btn--primary" href="{% url 'accounts:login' %}">
+          Iniciar sesión
+        </a>
+      {% endif %}
+    </div>
+  </section>
+{% endblock %}

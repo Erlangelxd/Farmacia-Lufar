@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+
+{% block title %}Mi cuenta | Farmacia Lufar{% endblock %}
+
+{% block content %}
+  <div class="page-header">
+    <div>
+      <p class="eyebrow">Cuenta</p>
+      <h1>Mi cuenta</h1>
+      <p class="page-header__text">
+        Información de tu acceso y de los roles asignados en el sistema.
+      </p>
+    </div>
+    {% if can_manage_users %}
+      <a class="btn btn--secondary" href="{% url 'accounts:usuarios' %}">
+        Gestionar usuarios
+      </a>
+    {% endif %}
+  </div>
+
+  <div class="detail-grid">
+    <section class="card">
+      <div class="card__header">
+        <h2>Datos de la cuenta</h2>
+      </div>
+      <dl class="detail-list">
+        <div>
+          <dt>Usuario</dt>
+          <dd>{{ user.username }}</dd>
+        </div>
+        <div>
+          <dt>Nombre</dt>
+          <dd>{{ user.get_full_name|default:"Sin nombre registrado" }}</dd>
+        </div>
+        <div>
+          <dt>Correo</dt>
+          <dd>{{ user.email|default:"Sin correo registrado" }}</dd>
+        </div>
+        <div>
+          <dt>Estado</dt>
+          <dd>
+            {% if user.is_active %}
+              <span class="badge badge--success">Activo</span>
+            {% else %}
+              <span class="badge badge--muted">Inactivo</span>
+            {% endif %}
+          </dd>
+        </div>
+        <div>
+          <dt>Último acceso</dt>
+          <dd>{{ user.last_login|date:"d/m/Y H:i"|default:"Sin registro" }}</dd>
+        </div>
+      </dl>
+    </section>
+
+    <section class="card">
+      <div class="card__header">
+        <h2>Roles y permisos</h2>
+      </div>
+      <div class="role-list">
+        {% if user.is_superuser %}
+          <span class="badge badge--brand">Superusuario</span>
+        {% endif %}
+        {% for group in groups %}
+          <span class="badge">{{ group.name }}</span>
+        {% empty %}
+          {% if not user.is_superuser %}
+            <p class="text-muted">Sin roles asignados.</p>
+          {% endif %}
+        {% endfor %}
+      </div>
+      <p class="card__hint">
+        Los permisos detallados se asignarán por modelo cuando se implementen
+        los módulos. Por ahora los grupos identifican el rol del usuario.
+      </p>
+      {% if can_manage_users %}
+        <a class="btn btn--secondary btn--block" href="{% url 'accounts:usuarios' %}">
+          Ver usuarios y grupos
+        </a>
+      {% endif %}
+    </section>
+  </div>
+{% endblock %}

@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+
+{% block title %}Acceso denegado | Farmacia Lufar{% endblock %}
+
+{% block content %}
+  <section class="error-card card">
+    <span class="error-card__code">403</span>
+    <h1>No tienes permiso para acceder</h1>
+    <p>
+      Tu cuenta no cuenta con el rol necesario para esta sección. Si crees que
+      se trata de un error, contacta al administrador del sistema.
+    </p>
+    <div class="page-actions">
+      {% if user.is_authenticated %}
+        <a class="btn btn--primary" href="{% url 'core:dashboard' %}">
+          Volver al panel
+        </a>
+      {% else %}
+        <a class="btn btn--primary" href="{% url 'accounts:login' %}">
+          Iniciar sesión
+        </a>
+      {% endif %}
+    </div>
+  </section>
+{% endblock %}

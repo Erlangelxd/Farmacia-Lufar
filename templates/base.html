@@ -1,0 +1,72 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Sistema de gestión de Farmacia Lufar">
+  <meta name="theme-color" content="#0f5c4a">
+  <title>{% block title %}Farmacia Lufar{% endblock %}</title>
+  <link rel="icon" type="image/svg+xml" href="{% static 'img/logo.svg' %}">
+  <link rel="stylesheet" href="{% static 'css/styles.css' %}">
+  {% block extra_css %}{% endblock %}
+</head>
+<body class="{% block body_class %}{% if user.is_authenticated %}app-page{% else %}auth-page{% endif %}{% endblock %}">
+  <a class="skip-link" href="#main-content">Saltar al contenido</a>
+
+  {% if user.is_authenticated %}
+    {% include "includes/sidebar.html" %}
+  {% endif %}
+
+  <div class="page-shell{% if not user.is_authenticated %} page-shell--auth{% endif %}">
+    {% if user.is_authenticated %}
+      <header class="topbar">
+        <button
+          type="button"
+          class="icon-button menu-toggle"
+          data-sidebar-toggle
+          aria-controls="sidebar"
+          aria-expanded="false"
+        >
+          <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true">
+            <path d="M4 7h16M4 12h16M4 17h16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+          </svg>
+          <span class="sr-only">Abrir menú de navegación</span>
+        </button>
+
+        <div class="topbar__context">
+          <span class="topbar__label">Sistema de gestión</span>
+          <span class="topbar__separator" aria-hidden="true"></span>
+          <span class="topbar__date">{% now "d/m/Y" %}</span>
+        </div>
+
+        <div class="topbar__status">
+          <span class="status-dot" aria-hidden="true"></span>
+          Entorno local
+        </div>
+      </header>
+    {% endif %}
+
+    <main
+      id="main-content"
+      class="{% if user.is_authenticated %}content{% else %}auth-shell{% endif %}"
+    >
+      <div class="{% if user.is_authenticated %}content__inner{% else %}auth-shell__inner{% endif %}">
+        {% include "includes/messages.html" %}
+        {% block content %}{% endblock %}
+      </div>
+    </main>
+
+    {% if user.is_authenticated %}
+      {% include "includes/footer.html" %}
+    {% endif %}
+  </div>
+
+  {% if user.is_authenticated %}
+    <div class="sidebar-overlay" data-sidebar-overlay></div>
+  {% endif %}
+
+  <script src="{% static 'js/app.js' %}" defer></script>
+  {% block extra_js %}{% endblock %}
+</body>
+</html>

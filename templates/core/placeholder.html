@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+
+{% block title %}{{ module_title }} | Farmacia Lufar{% endblock %}
+
+{% block content %}
+  <div class="page-header">
+    <div>
+      <p class="eyebrow">Módulo</p>
+      <h1>{{ module_title }}</h1>
+      <p class="page-header__text">{{ module_description }}</p>
+    </div>
+    <span class="badge badge--warning">Estructura inicial</span>
+  </div>
+
+  <section class="card placeholder-card">
+    <div class="placeholder-card__code" aria-hidden="true">{{ module_code }}</div>
+    <div class="placeholder-card__body">
+      <h2>Base lista para la siguiente etapa</h2>
+      <p>
+        La aplicación está registrada, enrutada y protegida por autenticación.
+        El alcance previsto para este módulo es:
+      </p>
+      <ul class="check-list">
+        {% for item in module_scope %}
+          <li>{{ item }}</li>
+        {% endfor %}
+      </ul>
+      <p class="notice">{{ module_note }}</p>
+    </div>
+  </section>
+
+  <div class="page-actions">
+    <a class="btn btn--primary" href="{% url 'core:dashboard' %}">
+      Volver al panel
+    </a>
+  </div>
+{% endblock %}

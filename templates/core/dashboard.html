@@ -1,0 +1,131 @@
+{% extends "base.html" %}
+
+{% block title %}Panel general | Farmacia Lufar{% endblock %}
+
+{% block content %}
+  <section class="hero">
+    <div class="hero__content">
+      <p class="eyebrow">Panel general</p>
+      <h1>Hola, {{ user.get_full_name|default:user.username }}</h1>
+      <p class="hero__text">
+        Este es el punto de partida del sistema de gestión de Farmacia Lufar.
+        La estructura de módulos ya está preparada para incorporar la operación
+        real en las siguientes etapas.
+      </p>
+      <p class="hero__date">
+        <span class="hero__date-label">Hoy</span>
+        {{ today|date:"l, j \d\e F \d\e Y" }}
+      </p>
+    </div>
+    <div class="hero__aside">
+      <span class="badge badge--light">Entorno local</span>
+      <span class="badge badge--outline">Etapa inicial</span>
+    </div>
+  </section>
+
+  <div class="notice notice--warning" role="note">
+    <strong>Datos provisionales.</strong>
+    Los indicadores de este panel son ejemplos visuales y no representan
+    información real. Se reemplazarán por consultas a los módulos cuando existan
+    sus modelos y operaciones.
+  </div>
+
+  <div class="stat-grid">
+    {% for card in dashboard_cards %}
+      <article class="stat-card stat-card--{{ card.tone }}">
+        <div class="stat-card__top">
+          <span class="stat-card__label">{{ card.label }}</span>
+          <span class="badge badge--sample">Provisional</span>
+        </div>
+        <p class="stat-card__value">{{ card.value }}</p>
+        <p class="stat-card__detail">{{ card.detail }}</p>
+      </article>
+    {% endfor %}
+  </div>
+
+  <div class="panel-grid">
+    <section class="card">
+      <div class="card__header">
+        <div>
+          <p class="eyebrow">Operación</p>
+          <h2>Accesos rápidos</h2>
+        </div>
+      </div>
+      <div class="quick-links">
+        <a class="quick-link" href="{% url 'catalogo:index' %}">
+          <span>
+            <strong>Catálogo</strong>
+            <small>Productos y categorías</small>
+          </span>
+          <span class="quick-link__arrow" aria-hidden="true">&rarr;</span>
+        </a>
+        <a class="quick-link" href="{% url 'inventario:index' %}">
+          <span>
+            <strong>Inventario</strong>
+            <small>Existencias y movimientos</small>
+          </span>
+          <span class="quick-link__arrow" aria-hidden="true">&rarr;</span>
+        </a>
+        <a class="quick-link" href="{% url 'compras:index' %}">
+          <span>
+            <strong>Compras</strong>
+            <small>Proveedores y abastecimiento</small>
+          </span>
+          <span class="quick-link__arrow" aria-hidden="true">&rarr;</span>
+        </a>
+        <a class="quick-link" href="{% url 'ventas:index' %}">
+          <span>
+            <strong>Ventas</strong>
+            <small>Operaciones y comprobantes</small>
+          </span>
+          <span class="quick-link__arrow" aria-hidden="true">&rarr;</span>
+        </a>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="card__header">
+        <div>
+          <p class="eyebrow">Proyecto</p>
+          <h2>Estado de la base</h2>
+        </div>
+      </div>
+      <ul class="status-list">
+        <li class="is-done">
+          <span class="status-list__icon" aria-hidden="true">&check;</span>
+          Autenticación y grupos configurados
+        </li>
+        <li class="is-done">
+          <span class="status-list__icon" aria-hidden="true">&check;</span>
+          Interfaz base y navegación
+        </li>
+        <li class="is-done">
+          <span class="status-list__icon" aria-hidden="true">&check;</span>
+          Ocho módulos registrados y enrutados
+        </li>
+        <li class="is-pending">
+          <span class="status-list__icon" aria-hidden="true">&bull;</span>
+          Modelos, formularios y operaciones
+        </li>
+      </ul>
+    </section>
+  </div>
+
+  <section class="card">
+    <div class="card__header">
+      <div>
+        <p class="eyebrow">Trazabilidad</p>
+        <h2>Actividad reciente</h2>
+      </div>
+      <span class="badge badge--muted">Sin registros</span>
+    </div>
+    <div class="empty-state">
+      <span class="empty-state__icon" aria-hidden="true">+</span>
+      <h3>Aún no hay actividad</h3>
+      <p>
+        Los movimientos de compras, ventas e inventario aparecerán aquí cuando
+        se implementen los módulos. En esta etapa no se registran operaciones.
+      </p>
+    </div>
+  </section>
+{% endblock %}
