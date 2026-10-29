@@ -17,7 +17,7 @@ autenticación, la navegación ni la organización del proyecto.
 
 ### Incluido
 
-- Proyecto Django `farmacia_lufar` con configuración en `config/`.
+- Proyecto Django de Farmacia Lufar con configuración en `config/`.
 - Ocho aplicaciones: `core`, `accounts`, `catalogo`, `inventario`, `compras`,
   `clientes`, `ventas` y `reportes`.
 - Login y logout con el sistema de autenticación de Django.
@@ -236,6 +236,9 @@ Los estilos, el JavaScript y el logo se sirven desde `static/` con el servidor
 de desarrollo. No hay CDN ni dependencias de fuentes externas.
 
 ## 10. Estrategia básica de ramas Git
+
+El repositorio local ya está inicializado con las ramas `main` y `develop` en el
+commit inicial. Solo falta agregar el remoto de GitHub.
 
 El repositorio debe tener dos ramas permanentes y ramas cortas por funcionalidad.
 
