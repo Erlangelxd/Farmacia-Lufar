@@ -54,9 +54,9 @@
 
       <p class="nav__section">Gestión</p>
       <a
-        class="nav__link{% if current == 'clientes:index' %} is-active{% endif %}"
+        class="nav__link{% if current == 'clientes:index' or current == 'clientes:crear' or current == 'clientes:detalle' %} is-active{% endif %}"
         href="{% url 'clientes:index' %}"
-        {% if current == 'clientes:index' %}aria-current="page"{% endif %}
+        {% if current == 'clientes:index' or current == 'clientes:crear' or current == 'clientes:detalle' %}aria-current="page"{% endif %}
       >Clientes</a>
       <a
         class="nav__link{% if current == 'reportes:index' %} is-active{% endif %}"

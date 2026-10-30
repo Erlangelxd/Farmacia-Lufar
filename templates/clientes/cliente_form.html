@@ -1,0 +1,106 @@
+{% extends "base.html" %}
+
+{% block title %}Registrar cliente | Farmacia Lufar{% endblock %}
+
+{% block content %}
+  <div class="page-header">
+    <div>
+      <p class="eyebrow">Clientes</p>
+      <h1>Registrar cliente</h1>
+      <p class="page-header__text">
+        Completa los datos de identificación y contacto. Solo el nombre es
+        obligatorio; el documento y el teléfono son opcionales.
+      </p>
+    </div>
+    <a class="btn btn--secondary" href="{% url 'clientes:index' %}">
+      Volver al listado
+    </a>
+  </div>
+
+  <section class="card">
+    <form method="post" class="client-form" novalidate>
+      {% csrf_token %}
+
+      {% if form.non_field_errors %}
+        <div class="form-errors" role="alert">
+          {% for error in form.non_field_errors %}
+            <p>{{ error }}</p>
+          {% endfor %}
+        </div>
+      {% endif %}
+
+      <div class="form-grid">
+        <div class="form-field form-field--full">
+          <label for="{{ form.nombre.id_for_label }}">
+            {{ form.nombre.label }}
+            <span class="required-mark" aria-hidden="true">*</span>
+          </label>
+          {{ form.nombre }}
+          {% for error in form.nombre.errors %}
+            <p class="field-error">{{ error }}</p>
+          {% endfor %}
+        </div>
+
+        <div class="form-field">
+          <label for="{{ form.tipo_documento.id_for_label }}">
+            {{ form.tipo_documento.label }}
+          </label>
+          {{ form.tipo_documento }}
+          {% for error in form.tipo_documento.errors %}
+            <p class="field-error">{{ error }}</p>
+          {% endfor %}
+          {% if form.tipo_documento.help_text %}
+            <p class="field-help">{{ form.tipo_documento.help_text }}</p>
+          {% endif %}
+        </div>
+
+        <div class="form-field">
+          <label for="{{ form.numero_documento.id_for_label }}">
+            {{ form.numero_documento.label }}
+          </label>
+          {{ form.numero_documento }}
+          {% for error in form.numero_documento.errors %}
+            <p class="field-error">{{ error }}</p>
+          {% endfor %}
+          {% if form.numero_documento.help_text %}
+            <p class="field-help">{{ form.numero_documento.help_text }}</p>
+          {% endif %}
+        </div>
+
+        <div class="form-field">
+          <label for="{{ form.telefono.id_for_label }}">
+            {{ form.telefono.label }}
+          </label>
+          {{ form.telefono }}
+          {% for error in form.telefono.errors %}
+            <p class="field-error">{{ error }}</p>
+          {% endfor %}
+          {% if form.telefono.help_text %}
+            <p class="field-help">{{ form.telefono.help_text }}</p>
+          {% endif %}
+        </div>
+
+        <div class="form-field form-field--checkbox">
+          <label class="checkbox-field" for="{{ form.activo.id_for_label }}">
+            {{ form.activo }}
+            <span>{{ form.activo.label }}</span>
+          </label>
+          {% for error in form.activo.errors %}
+            <p class="field-error">{{ error }}</p>
+          {% endfor %}
+        </div>
+      </div>
+
+      <p class="form-note">
+        Los campos con <span class="required-mark">*</span> son obligatorios.
+      </p>
+
+      <div class="form-actions">
+        <button class="btn btn--primary" type="submit">Guardar cliente</button>
+        <a class="btn btn--secondary" href="{% url 'clientes:index' %}">
+          Cancelar
+        </a>
+      </div>
+    </form>
+  </section>
+{% endblock %}

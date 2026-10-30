@@ -1009,6 +1009,146 @@ h3 {
   font-weight: 800;
 }
 
+/* Clientes */
+.page-header__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+}
+
+.btn.btn--small {
+  padding: 0.45rem 0.7rem;
+  font-size: 0.78rem;
+}
+
+.filter-form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(160px, 220px) auto;
+  gap: 0.8rem;
+  align-items: end;
+}
+
+.filter-form__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.form-field--full {
+  grid-column: 1 / -1;
+}
+
+.form-field--checkbox {
+  justify-content: flex-end;
+}
+
+.checkbox-field {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  min-height: 42px;
+  padding: 0.65rem 0.8rem;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: var(--surface-soft);
+  color: var(--ink-soft);
+  font-size: 0.88rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.checkbox-control {
+  width: 1.05rem;
+  height: 1.05rem;
+  accent-color: var(--brand);
+  cursor: pointer;
+}
+
+.required-mark {
+  color: var(--danger);
+  font-weight: 800;
+}
+
+.field-help {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.75rem;
+}
+
+.form-errors {
+  margin-bottom: 1rem;
+  padding: 0.8rem 0.9rem;
+  border: 1px solid #f5c2c0;
+  border-radius: var(--radius-sm);
+  background: var(--danger-soft);
+  color: var(--danger);
+  font-size: 0.85rem;
+}
+
+.form-errors p {
+  margin: 0;
+}
+
+.form-errors p + p {
+  margin-top: 0.3rem;
+}
+
+.form-note {
+  margin: 1rem 0 0;
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
+.form-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  margin-top: 1.2rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--line);
+}
+
+.table__actions {
+  text-align: right;
+  white-space: nowrap;
+}
+
+.pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--line);
+}
+
+.pagination__summary {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
+.pagination__links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.empty-state--compact {
+  padding: 1.2rem;
+}
+
+.empty-state p.empty-state__actions {
+  margin-top: 0.9rem;
+}
+
 /* Cuenta y tablas */
 .detail-grid {
   display: grid;
@@ -1846,6 +1986,33 @@ h3 {
   .hero__aside {
     flex-direction: row;
     align-items: center;
+  }
+}
+
+@media (max-width: 700px) {
+  .filter-form {
+    grid-template-columns: 1fr;
+  }
+
+  .filter-form__actions {
+    justify-content: flex-start;
+  }
+
+  .form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .form-field--full {
+    grid-column: auto;
+  }
+
+  .form-field--checkbox {
+    justify-content: flex-start;
+  }
+
+  .pagination {
+    align-items: flex-start;
+    flex-direction: column;
   }
 }
 

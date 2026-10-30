@@ -63,6 +63,7 @@ class InitialStructureTests(TestCase):
             "inventario:index",
             "compras:index",
             "clientes:index",
+            "clientes:crear",
             "ventas:index",
             "reportes:index",
         )
@@ -88,6 +89,7 @@ class InitialStructureTests(TestCase):
             "inventario:index",
             "compras:index",
             "clientes:index",
+            "clientes:crear",
             "ventas:index",
             "reportes:index",
         )
@@ -130,7 +132,6 @@ class InitialStructureTests(TestCase):
             ("catalogo:index", "Catálogo"),
             ("inventario:index", "Inventario"),
             ("compras:index", "Compras"),
-            ("clientes:index", "Clientes"),
             ("ventas:index", "Ventas"),
             ("reportes:index", "Reportes"),
         )
@@ -140,6 +141,12 @@ class InitialStructureTests(TestCase):
                 self.assertEqual(module_response.status_code, 200)
                 self.assertTemplateUsed(module_response, "core/placeholder.html")
                 self.assertContains(module_response, title)
+
+        clientes_response = self.client.get(reverse("clientes:index"))
+        self.assertEqual(clientes_response.status_code, 200)
+        self.assertTemplateUsed(clientes_response, "clientes/cliente_list.html")
+        self.assertContains(clientes_response, "Clientes")
+        self.assertContains(clientes_response, "Registrar cliente")
 
     def test_seller_sees_profile_but_not_user_management(self):
         self.client.force_login(self.seller_user)

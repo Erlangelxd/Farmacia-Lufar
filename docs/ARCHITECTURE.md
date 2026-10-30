@@ -1,6 +1,6 @@
 # Arquitectura — Farmacia Lufar
 
-**Estado:** estructura inicial lista para la siguiente etapa de desarrollo.
+**Estado:** base funcional con autenticación y módulo de clientes (registro y consulta). Las demás apps siguen en estructura inicial.
 
 ## 1. Visión general
 
@@ -28,7 +28,7 @@ flowchart TB
 | `catalogo` | Categorías, productos, presentaciones y precios. | Solo estructura y ruta |
 | `inventario` | Existencias, lotes y movimientos de entrada, salida y ajuste. | Solo estructura y ruta |
 | `compras` | Proveedores, compras, detalle y recepción de mercadería. | Solo estructura y ruta |
-| `clientes` | Datos de clientes e historial comercial. | Solo estructura y ruta |
+| `clientes` | Datos de clientes e historial comercial. | Registro y consulta implementados |
 | `ventas` | Ventas, detalles, pagos y comprobantes. | Solo estructura y ruta |
 | `reportes` | Consultas e informes de solo lectura. No tendrá modelos propios. | Solo estructura y ruta |
 
@@ -60,9 +60,9 @@ sequenceDiagram
 
 - Se usa el modelo `User` integrado de Django. No se crea un modelo de usuario propio en esta etapa.
 - Los grupos base se crean mediante la migración `accounts.0001_create_default_groups`.
-- `LoginRequiredMixin` protege todas las vistas de gestión.
+- `LoginRequiredMixin` protege todas las vistas de gestión. Las vistas de clientes usan este mixin en esta etapa.
 - `RoleRequiredMixin` permite restringir una vista a grupos concretos. Los superusuarios siempre tienen acceso.
-- Los permisos por modelo se asignarán a los grupos cuando existan los modelos de cada app.
+- Los permisos por modelo se asignarán a los grupos cuando existan los modelos de cada app. El modelo `Cliente` ya existe, pero sus permisos por rol todavía no se aplican.
 - El login y el logout usan las vistas de Django y protección CSRF. El logout solo acepta POST.
 
 ## 4. Límites entre módulos
@@ -74,11 +74,12 @@ Estas reglas buscan evitar dependencias circulares y duplicación de lógica:
 3. `catalogo` es dueño del maestro de productos. `inventario` referencia productos, pero no modifica sus datos maestros.
 4. `inventario` es el único módulo que debe alterar existencias. Compras y ventas deberán solicitar movimientos a través de una función de servicio transaccional.
 5. `compras` es dueño de `Proveedor`, `Compra` y `DetalleCompra`.
-6. `ventas` es dueño de `Venta`, `DetalleVenta` y `Pago`.
-7. `reportes` solo consulta; no debe escribir datos ni crear dependencias inversas.
-8. `core` contiene infraestructura compartida, no reglas de negocio de otros módulos.
-9. Las operaciones que afecten varias tablas (venta + inventario, compra + inventario) se ejecutarán dentro de `transaction.atomic()` y con bloqueo de stock cuando corresponda.
-10. Las vistas deben mantenerse delgadas. Cuando una operación tenga varias reglas, se extraerá a un servicio del módulo correspondiente.
+6. `clientes` es dueño de `Cliente`. `ventas` podrá referenciarlo, pero no modificar sus datos maestros.
+7. `ventas` es dueño de `Venta`, `DetalleVenta` y `Pago`.
+8. `reportes` solo consulta; no debe escribir datos ni crear dependencias inversas.
+9. `core` contiene infraestructura compartida, no reglas de negocio de otros módulos.
+10. Las operaciones que afecten varias tablas (venta + inventario, compra + inventario) se ejecutarán dentro de `transaction.atomic()` y con bloqueo de stock cuando corresponda.
+11. Las vistas deben mantenerse delgadas. Cuando una operación tenga varias reglas, se extraerá a un servicio del módulo correspondiente.
 
 ## 5. Convenciones del equipo
 
@@ -97,11 +98,11 @@ Estas reglas buscan evitar dependencias circulares y duplicación de lógica:
 
 La base inicial es SQLite (`db.sqlite3`), ignorada por Git. SQLite es suficiente para el desarrollo local y una única instancia, pero tiene limitaciones de concurrencia. Si el sistema se despliega para varios usuarios simultáneos, se evaluará PostgreSQL antes de la puesta en producción.
 
-En esta entrega no se definieron entidades de negocio. La única migración propia crea los grupos base. Las siguientes etapas deben crear los modelos en este orden sugerido para respetar dependencias:
+La migración `clientes.0001_initial` crea la tabla `Cliente` con sus restricciones de documento. Las siguientes etapas deben crear los modelos en este orden sugerido para respetar dependencias:
 
 1. `catalogo`: `Categoria`, `Producto`.
 2. `inventario`: existencias y movimientos, referenciando `catalogo.Producto`.
-3. `clientes`: `Cliente`.
+3. `clientes`: `Cliente` (registro y consulta implementados).
 4. `compras`: `Proveedor`, `Compra`, `DetalleCompra`.
 5. `ventas`: `Venta`, `DetalleVenta`, `Pago`.
 6. `reportes`: consultas sin modelos.
@@ -112,7 +113,7 @@ En esta entrega no se definieron entidades de negocio. La única migración prop
 |---|---|---|
 | 1 | Catálogo con CRUD y pruebas | `accounts`, `core` |
 | 2 | Inventario y movimientos transaccionales | Fase 1 |
-| 3 | Clientes | `accounts` |
+| 3 | Clientes: registro y consulta (implementado) | `accounts` |
 | 4 | Compras, proveedores y recepción | Fases 1 y 2 |
 | 5 | Ventas, pagos y salida de inventario | Fases 1, 2 y 3 |
 | 6 | Reportes de ventas, compras y stock | Fases 2, 4 y 5 |
@@ -131,3 +132,4 @@ En esta entrega no se definieron entidades de negocio. La única migración prop
 - [ADR-002: User integrado y autorización por grupos](adr/ADR-002-user-integrado-y-grupos.md)
 - [ADR-003: SQLite y operación local sin CDN](adr/ADR-003-sqlite-local-sin-cdn.md)
 - [ADR-004: Proveedores dentro de compras](adr/ADR-004-proveedores-en-compras.md)
+- [ADR-005: Registro y consulta de clientes](adr/ADR-005-clientes-registro-consulta.md)

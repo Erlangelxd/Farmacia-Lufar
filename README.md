@@ -4,10 +4,10 @@ Sistema web local para centralizar productos, inventario, compras, clientes,
 proveedores, ventas, usuarios y reportes de Farmacia Lufar. Está construido con
 Python, Django, SQLite y plantillas renderizadas en el servidor.
 
-> **Estado actual:** estructura base funcional. Incluye autenticación, grupos,
-> navegación, dashboard provisional, las ocho aplicaciones enrutadas y pruebas
-> iniciales. **No incluye todavía CRUD ni la lógica de compras, ventas o
-> movimientos de inventario.**
+> **Estado actual:** estructura base funcional con autenticación, grupos,
+> navegación, dashboard provisional y módulo de clientes con registro y
+> consulta. Las demás aplicaciones siguen en estructura inicial. **No incluye
+> todavía CRUD de catálogo, compras o ventas ni movimientos de inventario.**
 
 ## 1. Objetivo y alcance inicial
 
@@ -26,14 +26,17 @@ autenticación, la navegación ni la organización del proyecto.
 - Interfaz administrativa responsive con plantilla base, menú, encabezado,
   mensajes y área de contenido.
 - Dashboard con indicadores de ejemplo marcados como **provisionales**.
-- Rutas iniciales y páginas de alcance para cada módulo.
+- Módulo de clientes: registro, listado con búsqueda y filtro por estado,
+  ficha de consulta y administración desde Django Admin.
+- Rutas iniciales y páginas de alcance para los demás módulos.
 - Estilos y JavaScript locales, sin CDN.
-- Pruebas transversales de rutas, autenticación, CSRF, grupos y permisos.
+- Pruebas transversales y pruebas propias del módulo de clientes.
 - Documentación de arquitectura y decisiones en `docs/`.
 
 ### Fuera de alcance en esta entrega
 
-- Modelos y CRUD completos de catálogo, clientes, proveedores, compras y ventas.
+- Modelos y CRUD completos de catálogo, proveedores, compras y ventas.
+- Edición y eliminación de clientes, y su historial comercial.
 - Movimientos reales de inventario.
 - Facturación, impuestos, precios y reglas comerciales.
 - Reportes con datos reales.
@@ -54,7 +57,7 @@ API REST separada, React ni servicios en la nube.
 | `catalogo` | Categorías, productos, presentaciones y precios. | Ruta y estructura |
 | `inventario` | Existencias, lotes y movimientos de entrada, salida y ajuste. | Ruta y estructura |
 | `compras` | Proveedores, compras, detalle y recepción de mercadería. | Ruta y estructura |
-| `clientes` | Datos de clientes e historial comercial. | Ruta y estructura |
+| `clientes` | Datos de clientes e historial comercial. | Registro y consulta implementados |
 | `ventas` | Ventas, detalles, pagos y comprobantes. | Ruta y estructura |
 | `reportes` | Consultas e informes de solo lectura. | Ruta y estructura |
 
@@ -66,7 +69,11 @@ Decisiones importantes:
   usuario personalizado en esta etapa.
 - **Los permisos por modelo se asignarán después.** Por ahora los grupos
   identifican el rol y `RoleRequiredMixin` restringe la vista de usuarios al
-  grupo `Administrador`.
+  grupo `Administrador`. Las vistas de clientes usan `LoginRequiredMixin` y
+  quedarán sujetas a los permisos por modelo cuando se definan.
+- **Clientes no guarda correo ni dirección en esta etapa.** El documento es
+  opcional; si se registra, el tipo y el número deben ingresarse juntos y el
+  número es único por tipo.
 - **Inventario será el único dueño de las existencias.** Compras y ventas
   deberán registrar sus movimientos mediante servicios transaccionales.
 
@@ -133,9 +140,10 @@ funcionar.
 python manage.py migrate
 ```
 
-Esto crea `db.sqlite3` y aplica las migraciones de Django y de `accounts`. La
-migración `accounts.0001_create_default_groups` crea los grupos base de forma
-idempotente. Puedes verificarlos con:
+Esto crea `db.sqlite3` y aplica las migraciones de Django, de `accounts` y de
+`clientes`. La migración `accounts.0001_create_default_groups` crea los grupos
+base de forma idempotente y `clientes.0001_initial` crea la tabla de clientes.
+Puedes verificar los grupos con:
 
 ```bash
 python manage.py shell -c "from django.contrib.auth.models import Group; print(list(Group.objects.values_list('name', flat=True)))"
@@ -185,13 +193,13 @@ python manage.py test
 python manage.py makemigrations --check --dry-run
 ```
 
-Las 15 pruebas iniciales cubren:
+Las 49 pruebas actuales cubren:
 
 - Carga de las ocho aplicaciones.
 - Resolución de las rutas iniciales.
 - Creación de los grupos base.
 - Redirección al login de todas las vistas de gestión.
-- Protección CSRF del formulario de login.
+- Protección CSRF del formulario de login y del registro de clientes.
 - Login válido e inválido.
 - Mensaje de bienvenida después del login.
 - Logout solo por POST y limpieza de sesión.
@@ -200,6 +208,14 @@ Las 15 pruebas iniciales cubren:
 - Respuesta `403` para el Vendedor en la vista de usuarios.
 - Visibilidad del enlace de usuarios según el rol.
 - Plantilla personalizada para páginas no encontradas (`404`).
+- Validación del modelo `Cliente`: documento opcional, coherencia tipo/número,
+  unicidad y normalización de espacios.
+- Validación del formulario de clientes: nombre obligatorio, documento
+  duplicado y ausencia de campos de correo y dirección.
+- Listado de clientes con búsqueda por nombre, documento o teléfono, filtro por
+  estado y paginación.
+- Registro de clientes, asignación de `creado_por`, mensaje de éxito y ficha de
+  consulta.
 
 Las pruebas usan una base de datos temporal y no modifican `db.sqlite3`.
 
@@ -221,7 +237,9 @@ Abre `http://127.0.0.1:8000/` en el navegador. Para detener el servidor usa
 | `/catalogo/` | Página inicial del catálogo. |
 | `/inventario/` | Página inicial de inventario. |
 | `/compras/` | Página inicial de compras. |
-| `/clientes/` | Página inicial de clientes. |
+| `/clientes/` | Listado y búsqueda de clientes. |
+| `/clientes/nuevo/` | Registro de un cliente. |
+| `/clientes/<id>/` | Ficha de consulta de un cliente. |
 | `/ventas/` | Página inicial de ventas. |
 | `/reportes/` | Página inicial de reportes. |
 | `/admin/` | Administración de Django. |
@@ -344,6 +362,7 @@ el paso a PostgreSQL si habrá varios usuarios concurrentes.
 ├── requirements.txt
 ├── .gitignore
 ├── README.md
+├── CHANGELOG.md
 ├── config/
 │   ├── __init__.py
 │   ├── settings.py
@@ -375,6 +394,14 @@ el paso a PostgreSQL si habrá varios usuarios concurrentes.
 │   ├── inventario/
 │   ├── compras/
 │   ├── clientes/
+│   │   ├── admin.py
+│   │   ├── apps.py
+│   │   ├── forms.py
+│   │   ├── models.py
+│   │   ├── urls.py
+│   │   ├── views.py
+│   │   ├── tests.py
+│   │   └── migrations/0001_initial.py
 │   ├── ventas/
 │   └── reportes/
 ├── templates/
@@ -384,6 +411,7 @@ el paso a PostgreSQL si habrá varios usuarios concurrentes.
 │   ├── includes/
 │   ├── core/
 │   ├── accounts/
+│   ├── clientes/
 │   └── registration/login.html
 ├── static/
 │   ├── css/styles.css
@@ -401,11 +429,15 @@ el paso a PostgreSQL si habrá varios usuarios concurrentes.
 - La zona horaria inicial es `America/La_Paz`; se puede cambiar con
   `DJANGO_TIME_ZONE` sin modificar el código.
 - Los indicadores del dashboard son ejemplos visuales, no datos reales.
-- Los grupos base no tienen permisos por modelo todavía porque los modelos de
-  negocio aún no existen.
+- Los grupos base todavía no tienen permisos por modelo asignados. El modelo
+  `Cliente` ya existe, pero sus vistas se protegen por autenticación; los
+  permisos por rol se incorporarán más adelante.
 - No se implementó recuperación de contraseña por correo; el administrador
   gestiona las cuentas desde Django Admin.
 - Proveedor se implementará dentro de `compras`.
+- Cliente se registra con nombre obligatorio; tipo y número de documento son
+  opcionales y deben ingresarse juntos. No se guardan correo ni dirección en
+  esta etapa.
 - SQLite es suficiente para la etapa local; no se asume concurrencia alta.
 - No se implementaron reglas de negocio de precios, impuestos, descuentos,
   vencimientos ni facturación.
@@ -414,10 +446,10 @@ el paso a PostgreSQL si habrá varios usuarios concurrentes.
 
 1. Implementar `catalogo` con `Categoria`, `Producto`, formularios y CRUD.
 2. Implementar existencias y movimientos transaccionales en `inventario`.
-3. Implementar `clientes`.
-4. Implementar `compras` y la recepción que actualiza inventario.
-5. Implementar `ventas` y la salida de inventario en la misma transacción.
-6. Implementar reportes de solo lectura.
+3. Implementar `compras` y la recepción que actualiza inventario.
+4. Implementar `ventas` y la salida de inventario en la misma transacción.
+5. Implementar reportes de solo lectura.
+6. Completar clientes con edición/eliminación y su historial de ventas.
 7. Asignar permisos por modelo a los grupos y ampliar las pruebas.
 8. Endurecer seguridad, backups y despliegue.
 
@@ -428,4 +460,5 @@ el paso a PostgreSQL si habrá varios usuarios concurrentes.
 - [ADR-002: User integrado y autorización por grupos](docs/adr/ADR-002-user-integrado-y-grupos.md)
 - [ADR-003: SQLite y operación local sin CDN](docs/adr/ADR-003-sqlite-local-sin-cdn.md)
 - [ADR-004: Proveedores dentro de compras](docs/adr/ADR-004-proveedores-en-compras.md)
-# Farmacia-Lufar
+- [ADR-005: Registro y consulta de clientes](docs/adr/ADR-005-clientes-registro-consulta.md)
+- [CHANGELOG](CHANGELOG.md)

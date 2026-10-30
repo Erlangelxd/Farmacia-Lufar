@@ -1,0 +1,125 @@
+{% extends "base.html" %}
+
+{% block title %}{{ cliente.nombre }} | Clientes | Farmacia Lufar{% endblock %}
+
+{% block content %}
+  <div class="page-header">
+    <div>
+      <p class="eyebrow">Clientes</p>
+      <h1>{{ cliente.nombre }}</h1>
+      <p class="page-header__text">
+        Ficha de consulta del cliente. La edición y el historial de ventas se
+        incorporarán en etapas posteriores.
+      </p>
+    </div>
+    <div class="page-header__actions">
+      <a class="btn btn--secondary" href="{% url 'clientes:index' %}">
+        Volver al listado
+      </a>
+      <a class="btn btn--primary" href="{% url 'clientes:crear' %}">
+        Registrar otro
+      </a>
+    </div>
+  </div>
+
+  <div class="detail-grid">
+    <section class="card">
+      <div class="card__header">
+        <div>
+          <p class="eyebrow">Identificación</p>
+          <h2>Datos del cliente</h2>
+        </div>
+        {% if cliente.activo %}
+          <span class="badge badge--success">Activo</span>
+        {% else %}
+          <span class="badge badge--muted">Inactivo</span>
+        {% endif %}
+      </div>
+
+      <dl class="detail-list">
+        <div>
+          <dt>Nombre</dt>
+          <dd>{{ cliente.nombre }}</dd>
+        </div>
+        <div>
+          <dt>Documento</dt>
+          <dd>
+            {% if cliente.numero_documento %}
+              {{ cliente.get_tipo_documento_display }} {{ cliente.numero_documento }}
+            {% else %}
+              <span class="text-muted">Sin documento registrado</span>
+            {% endif %}
+          </dd>
+        </div>
+        <div>
+          <dt>Teléfono</dt>
+          <dd>
+            {% if cliente.telefono %}
+              {{ cliente.telefono }}
+            {% else %}
+              <span class="text-muted">Sin teléfono registrado</span>
+            {% endif %}
+          </dd>
+        </div>
+        <div>
+          <dt>Estado</dt>
+          <dd>
+            {% if cliente.activo %}
+              <span class="badge badge--success">Activo</span>
+            {% else %}
+              <span class="badge badge--muted">Inactivo</span>
+            {% endif %}
+          </dd>
+        </div>
+      </dl>
+    </section>
+
+    <section class="card">
+      <div class="card__header">
+        <h2>Registro</h2>
+      </div>
+      <dl class="detail-list">
+        <div>
+          <dt>Cliente</dt>
+          <dd>#{{ cliente.pk|stringformat:"04d" }}</dd>
+        </div>
+        <div>
+          <dt>Registrado por</dt>
+          <dd>
+            {% if cliente.creado_por %}
+              {{ cliente.creado_por.get_full_name|default:cliente.creado_por.username }}
+            {% else %}
+              Sistema
+            {% endif %}
+          </dd>
+        </div>
+        <div>
+          <dt>Fecha de registro</dt>
+          <dd>{{ cliente.creado_en|date:"d/m/Y H:i" }}</dd>
+        </div>
+        <div>
+          <dt>Última actualización</dt>
+          <dd>{{ cliente.actualizado_en|date:"d/m/Y H:i" }}</dd>
+        </div>
+      </dl>
+    </section>
+  </div>
+
+  <section class="card">
+    <div class="card__header">
+      <div>
+        <p class="eyebrow">Historial</p>
+        <h2>Historial comercial</h2>
+      </div>
+      <span class="badge badge--warning">Próxima etapa</span>
+    </div>
+    <div class="empty-state empty-state--compact">
+      <span class="empty-state__icon" aria-hidden="true">VT</span>
+      <h3>Sin historial todavía</h3>
+      <p>
+        Las ventas asociadas a este cliente se mostrarán cuando se implemente el
+        módulo de ventas.
+      </p>
+    </div>
+  </section>
+{% endblock %}

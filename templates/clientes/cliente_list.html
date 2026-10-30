@@ -1,0 +1,203 @@
+{% extends "base.html" %}
+
+{% block title %}Clientes | Farmacia Lufar{% endblock %}
+
+{% block content %}
+  <div class="page-header">
+    <div>
+      <p class="eyebrow">Gestión</p>
+      <h1>Clientes</h1>
+      <p class="page-header__text">
+        Registra y consulta los datos de identificación y contacto de los
+        clientes de la farmacia.
+      </p>
+    </div>
+    <a class="btn btn--primary" href="{% url 'clientes:crear' %}">
+      Registrar cliente
+    </a>
+  </div>
+
+  <div class="stat-grid stat-grid--compact">
+    <article class="stat-card stat-card--green">
+      <span class="stat-card__label">Clientes</span>
+      <p class="stat-card__value">{{ total_clientes }}</p>
+      <p class="stat-card__detail">Registrados en el sistema</p>
+    </article>
+    <article class="stat-card stat-card--teal">
+      <span class="stat-card__label">Activos</span>
+      <p class="stat-card__value">{{ total_activos }}</p>
+      <p class="stat-card__detail">Disponibles para la operación</p>
+    </article>
+    <article class="stat-card stat-card--amber">
+      <span class="stat-card__label">Inactivos</span>
+      <p class="stat-card__value">{{ total_inactivos }}</p>
+      <p class="stat-card__detail">Fuera de operación</p>
+    </article>
+  </div>
+
+  <section class="card">
+    <form
+      class="filter-form"
+      method="get"
+      action="{% url 'clientes:index' %}"
+      role="search"
+    >
+      <div class="form-field filter-form__search">
+        <label for="q">Buscar cliente</label>
+        <input
+          class="form-control"
+          type="search"
+          id="q"
+          name="q"
+          value="{{ q }}"
+          placeholder="Nombre, documento o teléfono"
+        >
+      </div>
+      <div class="form-field">
+        <label for="estado">Estado</label>
+        <select class="form-control" id="estado" name="estado">
+          <option value="">Todos</option>
+          <option value="activo"{% if estado == "activo" %} selected{% endif %}>
+            Activos
+          </option>
+          <option value="inactivo"{% if estado == "inactivo" %} selected{% endif %}>
+            Inactivos
+          </option>
+        </select>
+      </div>
+      <div class="filter-form__actions">
+        <button class="btn btn--primary" type="submit">Buscar</button>
+        {% if q or estado %}
+          <a class="btn btn--secondary" href="{% url 'clientes:index' %}">
+            Limpiar
+          </a>
+        {% endif %}
+      </div>
+    </form>
+  </section>
+
+  <section class="card">
+    <div class="card__header">
+      <div>
+        <p class="eyebrow">Directorio</p>
+        <h2>Clientes registrados</h2>
+        <p class="card__hint">
+          {% if paginator.count %}
+            {{ paginator.count }} resultado{{ paginator.count|pluralize }}
+          {% else %}
+            Sin resultados
+          {% endif %}
+        </p>
+      </div>
+      {% if q or estado %}
+        <span class="badge badge--soft">Filtro aplicado</span>
+      {% endif %}
+    </div>
+
+    {% if clientes %}
+      <div class="table-wrap">
+        <table class="table">
+          <thead>
+            <tr>
+              <th scope="col">Cliente</th>
+              <th scope="col">Documento</th>
+              <th scope="col">Teléfono</th>
+              <th scope="col">Registro</th>
+              <th scope="col">Estado</th>
+              <th scope="col"><span class="sr-only">Acciones</span></th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for cliente in clientes %}
+              <tr>
+                <td>
+                  <a
+                    class="table__primary"
+                    href="{% url 'clientes:detalle' cliente.pk %}"
+                  >{{ cliente.nombre }}</a>
+                  <span class="table__secondary">
+                    Cliente #{{ cliente.pk|stringformat:"04d" }}
+                  </span>
+                </td>
+                <td>
+                  {% if cliente.numero_documento %}
+                    <span class="table__primary">{{ cliente.numero_documento }}</span>
+                    <span class="table__secondary">
+                      {{ cliente.get_tipo_documento_display }}
+                    </span>
+                  {% else %}
+                    <span class="text-muted">Sin documento</span>
+                  {% endif %}
+                </td>
+                <td>
+                  {% if cliente.telefono %}
+                    {{ cliente.telefono }}
+                  {% else %}
+                    <span class="text-muted">Sin teléfono</span>
+                  {% endif %}
+                </td>
+                <td>{{ cliente.creado_en|date:"d/m/Y" }}</td>
+                <td>
+                  {% if cliente.activo %}
+                    <span class="badge badge--success">Activo</span>
+                  {% else %}
+                    <span class="badge badge--muted">Inactivo</span>
+                  {% endif %}
+                </td>
+                <td class="table__actions">
+                  <a
+                    class="btn btn--secondary btn--small"
+                    href="{% url 'clientes:detalle' cliente.pk %}"
+                  >Ver ficha</a>
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <div class="empty-state">
+        <span class="empty-state__icon" aria-hidden="true">CL</span>
+        {% if q or estado %}
+          <h3>No encontramos clientes</h3>
+          <p>Prueba con otro término de búsqueda o limpia los filtros.</p>
+          <p class="empty-state__actions">
+            <a class="btn btn--secondary" href="{% url 'clientes:index' %}">
+              Limpiar filtros
+            </a>
+          </p>
+        {% else %}
+          <h3>Aún no hay clientes registrados</h3>
+          <p>Registra el primer cliente para comenzar a construir el directorio.</p>
+          <p class="empty-state__actions">
+            <a class="btn btn--primary" href="{% url 'clientes:crear' %}">
+              Registrar primer cliente
+            </a>
+          </p>
+        {% endif %}
+      </div>
+    {% endif %}
+
+    {% if is_paginated %}
+      <nav class="pagination" aria-label="Paginación de clientes">
+        <p class="pagination__summary">
+          Página {{ page_obj.number }} de {{ paginator.num_pages }}
+        </p>
+        <div class="pagination__links">
+          {% if page_obj.has_previous %}
+            <a
+              class="btn btn--secondary btn--small"
+              href="?{% if querystring %}{{ querystring }}&{% endif %}page={{ page_obj.previous_page_number }}"
+            >Anterior</a>
+          {% endif %}
+          {% if page_obj.has_next %}
+            <a
+              class="btn btn--secondary btn--small"
+              href="?{% if querystring %}{{ querystring }}&{% endif %}page={{ page_obj.next_page_number }}"
+            >Siguiente</a>
+          {% endif %}
+        </div>
+      </nav>
+    {% endif %}
+  </section>
+{% endblock %}
