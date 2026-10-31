@@ -73,3 +73,9 @@ Implementar en `apps/clientes`:
   esta etapa.
 - **Implementar el historial comercial en clientes:** se acoplaría con ventas
   antes de que ese módulo exista. Se pospone.
+
+## Nota posterior
+
+El historial comercial se implementó junto con el módulo de ventas. La ficha del
+cliente muestra sus últimas ventas y un enlace al listado filtrado. Ver
+`ADR-006-ventas-catalogo-minimo-ticket.md`.

@@ -110,16 +110,68 @@
       <div>
         <p class="eyebrow">Historial</p>
         <h2>Historial comercial</h2>
+        <p class="card__hint">
+          {% if total_ventas %}
+            {{ total_ventas }} venta{{ total_ventas|pluralize }} registrada{{ total_ventas|pluralize }}
+          {% else %}
+            Sin ventas registradas
+          {% endif %}
+        </p>
       </div>
-      <span class="badge badge--warning">Próxima etapa</span>
+      {% if total_ventas %}
+        <a
+          class="btn btn--secondary btn--small"
+          href="{% url 'ventas:index' %}?cliente={{ cliente.pk }}"
+        >Ver todas</a>
+      {% endif %}
     </div>
-    <div class="empty-state empty-state--compact">
-      <span class="empty-state__icon" aria-hidden="true">VT</span>
-      <h3>Sin historial todavía</h3>
-      <p>
-        Las ventas asociadas a este cliente se mostrarán cuando se implemente el
-        módulo de ventas.
-      </p>
-    </div>
+
+    {% if ventas %}
+      <div class="table-wrap">
+        <table class="table">
+          <thead>
+            <tr>
+              <th scope="col">Venta</th>
+              <th scope="col">Fecha</th>
+              <th scope="col">Vendedor</th>
+              <th scope="col">Total</th>
+              <th scope="col"><span class="sr-only">Acciones</span></th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for venta in ventas %}
+              <tr>
+                <td>
+                  <a
+                    class="table__primary"
+                    href="{% url 'ventas:detalle' venta.pk %}"
+                  >{{ venta.numero }}</a>
+                </td>
+                <td>{{ venta.creado_en|date:"d/m/Y H:i" }}</td>
+                <td>
+                  {{ venta.vendedor.get_full_name|default:venta.vendedor.username }}
+                </td>
+                <td>Bs {{ venta.total|stringformat:"0.2f" }}</td>
+                <td class="table__actions">
+                  <a
+                    class="btn btn--secondary btn--small"
+                    href="{% url 'ventas:detalle' venta.pk %}"
+                  >Ver venta</a>
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <div class="empty-state empty-state--compact">
+        <span class="empty-state__icon" aria-hidden="true">VT</span>
+        <h3>Sin historial todavía</h3>
+        <p>
+          Las ventas asociadas a este cliente aparecerán aquí cuando se
+          registren.
+        </p>
+      </div>
+    {% endif %}
   </section>
 {% endblock %}

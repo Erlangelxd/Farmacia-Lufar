@@ -81,3 +81,13 @@ class ClienteDetailView(LoginRequiredMixin, DetailView):
 
     def get_queryset(self):
         return super().get_queryset().select_related("creado_por")
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        ventas = self.object.ventas.select_related("vendedor").order_by(
+            "-creado_en",
+            "-pk",
+        )
+        context["ventas"] = ventas[:5]
+        context["total_ventas"] = ventas.count()
+        return context

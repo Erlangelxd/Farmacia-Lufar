@@ -65,11 +65,15 @@ class InitialStructureTests(TestCase):
             "clientes:index",
             "clientes:crear",
             "ventas:index",
+            "ventas:crear",
             "reportes:index",
         )
         for name in route_names:
             with self.subTest(route=name):
                 self.assertTrue(reverse(name).startswith("/"))
+
+        self.assertTrue(reverse("ventas:detalle", args=[1]).startswith("/"))
+        self.assertTrue(reverse("ventas:ticket", args=[1]).startswith("/"))
 
     def test_default_groups_exist(self):
         existing_groups = set(
@@ -91,6 +95,7 @@ class InitialStructureTests(TestCase):
             "clientes:index",
             "clientes:crear",
             "ventas:index",
+            "ventas:crear",
             "reportes:index",
         )
         for name in protected_routes:
@@ -132,7 +137,6 @@ class InitialStructureTests(TestCase):
             ("catalogo:index", "Catálogo"),
             ("inventario:index", "Inventario"),
             ("compras:index", "Compras"),
-            ("ventas:index", "Ventas"),
             ("reportes:index", "Reportes"),
         )
         for name, title in module_routes:
@@ -147,6 +151,17 @@ class InitialStructureTests(TestCase):
         self.assertTemplateUsed(clientes_response, "clientes/cliente_list.html")
         self.assertContains(clientes_response, "Clientes")
         self.assertContains(clientes_response, "Registrar cliente")
+
+        ventas_response = self.client.get(reverse("ventas:index"))
+        self.assertEqual(ventas_response.status_code, 200)
+        self.assertTemplateUsed(ventas_response, "ventas/venta_list.html")
+        self.assertContains(ventas_response, "Ventas")
+        self.assertContains(ventas_response, "Registrar venta")
+
+        venta_form_response = self.client.get(reverse("ventas:crear"))
+        self.assertEqual(venta_form_response.status_code, 200)
+        self.assertTemplateUsed(venta_form_response, "ventas/venta_form.html")
+        self.assertContains(venta_form_response, "Registrar venta")
 
     def test_seller_sees_profile_but_not_user_management(self):
         self.client.force_login(self.seller_user)

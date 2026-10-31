@@ -47,9 +47,9 @@
         {% if current == 'compras:index' %}aria-current="page"{% endif %}
       >Compras</a>
       <a
-        class="nav__link{% if current == 'ventas:index' %} is-active{% endif %}"
+        class="nav__link{% if current == 'ventas:index' or current == 'ventas:crear' or current == 'ventas:detalle' or current == 'ventas:ticket' %} is-active{% endif %}"
         href="{% url 'ventas:index' %}"
-        {% if current == 'ventas:index' %}aria-current="page"{% endif %}
+        {% if current == 'ventas:index' or current == 'ventas:crear' or current == 'ventas:detalle' or current == 'ventas:ticket' %}aria-current="page"{% endif %}
       >Ventas</a>
 
       <p class="nav__section">Gestión</p>

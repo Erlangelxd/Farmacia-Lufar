@@ -1,0 +1,147 @@
+{% extends "base.html" %}
+
+{% block title %}{{ venta.numero }} | Ventas | Farmacia Lufar{% endblock %}
+
+{% block content %}
+  <div class="page-header">
+    <div>
+      <p class="eyebrow">Ventas</p>
+      <h1>{{ venta.numero }}</h1>
+      <p class="page-header__text">
+        Venta registrada el {{ venta.creado_en|date:"d/m/Y H:i" }}.
+      </p>
+    </div>
+    <div class="page-header__actions">
+      <a class="btn btn--secondary" href="{% url 'ventas:index' %}">
+        Volver al listado
+      </a>
+      <a class="btn btn--primary" href="{% url 'ventas:ticket' venta.pk %}">
+        Ver ticket
+      </a>
+    </div>
+  </div>
+
+  <div class="detail-grid">
+    <section class="card">
+      <div class="card__header">
+        <div>
+          <p class="eyebrow">Operación</p>
+          <h2>Datos de la venta</h2>
+        </div>
+        <span class="badge badge--success">Registrada</span>
+      </div>
+
+      <dl class="detail-list">
+        <div>
+          <dt>Número</dt>
+          <dd>{{ venta.numero }}</dd>
+        </div>
+        <div>
+          <dt>Fecha</dt>
+          <dd>{{ venta.creado_en|date:"d/m/Y H:i" }}</dd>
+        </div>
+        <div>
+          <dt>Cliente</dt>
+          <dd>
+            {% if venta.cliente %}
+              <a href="{% url 'clientes:detalle' venta.cliente.pk %}">
+                {{ venta.cliente.nombre }}
+              </a>
+              {% if venta.cliente.numero_documento %}
+                <span class="table__secondary">
+                  {{ venta.cliente.numero_documento }}
+                </span>
+              {% endif %}
+            {% else %}
+              <span class="text-muted">Consumidor final</span>
+            {% endif %}
+          </dd>
+        </div>
+        <div>
+          <dt>Vendedor</dt>
+          <dd>
+            {{ venta.vendedor.get_full_name|default:venta.vendedor.username }}
+          </dd>
+        </div>
+        <div>
+          <dt>Método de pago</dt>
+          <dd>{{ venta.get_metodo_pago_display }}</dd>
+        </div>
+      </dl>
+    </section>
+
+    <section class="card">
+      <div class="card__header">
+        <h2>Resumen</h2>
+      </div>
+      <dl class="detail-list">
+        <div>
+          <dt>Líneas</dt>
+          <dd>{{ venta.detalles.all|length }}</dd>
+        </div>
+        <div>
+          <dt>Unidades</dt>
+          <dd>{{ venta.cantidad_productos }}</dd>
+        </div>
+        <div>
+          <dt>Total</dt>
+          <dd>
+            <strong>Bs {{ venta.total|stringformat:"0.2f" }}</strong>
+          </dd>
+        </div>
+        <div>
+          <dt>Efectivo recibido</dt>
+          <dd>Bs {{ venta.monto_recibido|stringformat:"0.2f" }}</dd>
+        </div>
+        <div>
+          <dt>Cambio</dt>
+          <dd>Bs {{ venta.cambio|stringformat:"0.2f" }}</dd>
+        </div>
+      </dl>
+    </section>
+  </div>
+
+  <section class="card">
+    <div class="card__header">
+      <div>
+        <p class="eyebrow">Detalle</p>
+        <h2>Productos vendidos</h2>
+      </div>
+    </div>
+
+    <div class="table-wrap">
+      <table class="table">
+        <thead>
+          <tr>
+            <th scope="col">Producto</th>
+            <th scope="col">Código</th>
+            <th scope="col">Cantidad</th>
+            <th scope="col">Precio unitario</th>
+            <th scope="col">Subtotal</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for detalle in venta.detalles.all %}
+            <tr>
+              <td>
+                <span class="table__primary">{{ detalle.nombre_producto }}</span>
+              </td>
+              <td>{{ detalle.codigo_producto }}</td>
+              <td>{{ detalle.cantidad }}</td>
+              <td>Bs {{ detalle.precio_unitario|stringformat:"0.2f" }}</td>
+              <td>Bs {{ detalle.subtotal|stringformat:"0.2f" }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+        <tfoot>
+          <tr>
+            <th colspan="4">Total</th>
+            <td>
+              <strong>Bs {{ venta.total|stringformat:"0.2f" }}</strong>
+            </td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+  </section>
+{% endblock %}

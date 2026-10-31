@@ -10,11 +10,12 @@ class CatalogoIndexView(ModulePlaceholderView):
         "Maestro de productos, categorías, presentaciones y precios de venta."
     )
     module_scope = (
+        "Productos mínimos con código, nombre, precio y estado.",
         "Categorías y subcategorías de productos.",
-        "Productos, código interno, presentación y precio.",
-        "Búsqueda, filtros y estado activo/inactivo.",
+        "Búsqueda, filtros y presentaciones.",
     )
     module_note = (
-        "Los modelos, formularios y validaciones del catálogo se implementarán "
-        "en la siguiente etapa."
+        "El modelo Producto ya está disponible y se administra desde Django "
+        "Admin. El CRUD visual del catálogo se implementará en una etapa "
+        "posterior."
     )

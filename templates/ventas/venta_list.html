@@ -1,0 +1,221 @@
+{% extends "base.html" %}
+
+{% block title %}Ventas | Farmacia Lufar{% endblock %}
+
+{% block content %}
+  <div class="page-header">
+    <div>
+      <p class="eyebrow">Operación</p>
+      <h1>Ventas</h1>
+      <p class="page-header__text">
+        Registra las ventas de la farmacia y consulta su historial, detalles y
+        tickets.
+      </p>
+    </div>
+    <a class="btn btn--primary" href="{% url 'ventas:crear' %}">
+      Registrar venta
+    </a>
+  </div>
+
+  <div class="stat-grid stat-grid--compact">
+    <article class="stat-card stat-card--green">
+      <span class="stat-card__label">Ventas registradas</span>
+      <p class="stat-card__value">{{ total_ventas }}</p>
+      <p class="stat-card__detail">Operaciones confirmadas</p>
+    </article>
+    <article class="stat-card stat-card--teal">
+      <span class="stat-card__label">Ventas de hoy</span>
+      <p class="stat-card__value">{{ ventas_hoy }}</p>
+      <p class="stat-card__detail">Registradas en la fecha actual</p>
+    </article>
+    <article class="stat-card stat-card--amber">
+      <span class="stat-card__label">Ingresos de hoy</span>
+      <p class="stat-card__value">
+        Bs {{ ingresos_hoy|stringformat:"0.2f" }}
+      </p>
+      <p class="stat-card__detail">Total cobrado en efectivo</p>
+    </article>
+  </div>
+
+  <section class="card">
+    <form
+      class="filter-form"
+      method="get"
+      action="{% url 'ventas:index' %}"
+      role="search"
+    >
+      <div class="form-field filter-form__search">
+        <label for="q">Buscar venta</label>
+        <input
+          class="form-control"
+          type="search"
+          id="q"
+          name="q"
+          value="{{ q }}"
+          placeholder="N° de venta, cliente o producto"
+        >
+      </div>
+      <div class="form-field">
+        <label for="cliente">Cliente</label>
+        <select class="form-control" id="cliente" name="cliente">
+          <option value="">Todos</option>
+          {% for cliente in clientes %}
+            <option
+              value="{{ cliente.pk }}"
+              {% if cliente_id == cliente.pk|stringformat:"s" %}selected{% endif %}
+            >{{ cliente.nombre }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="filter-form__actions">
+        <button class="btn btn--primary" type="submit">Buscar</button>
+        {% if q or cliente_id %}
+          <a class="btn btn--secondary" href="{% url 'ventas:index' %}">
+            Limpiar
+          </a>
+        {% endif %}
+      </div>
+    </form>
+  </section>
+
+  <section class="card">
+    <div class="card__header">
+      <div>
+        <p class="eyebrow">Historial</p>
+        <h2>Ventas registradas</h2>
+        <p class="card__hint">
+          {% if paginator.count %}
+            {{ paginator.count }} resultado{{ paginator.count|pluralize }}
+          {% else %}
+            Sin resultados
+          {% endif %}
+        </p>
+      </div>
+      {% if q or cliente_id %}
+        <span class="badge badge--soft">Filtro aplicado</span>
+      {% endif %}
+    </div>
+
+    {% if ventas %}
+      <div class="table-wrap">
+        <table class="table">
+          <thead>
+            <tr>
+              <th scope="col">N°</th>
+              <th scope="col">Fecha</th>
+              <th scope="col">Cliente</th>
+              <th scope="col">Productos</th>
+              <th scope="col">Total</th>
+              <th scope="col">Estado</th>
+              <th scope="col"><span class="sr-only">Acciones</span></th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for venta in ventas %}
+              <tr>
+                <td>
+                  <a
+                    class="table__primary"
+                    href="{% url 'ventas:detalle' venta.pk %}"
+                  >{{ venta.numero }}</a>
+                  <span class="table__secondary">
+                    {{ venta.vendedor.get_full_name|default:venta.vendedor.username }}
+                  </span>
+                </td>
+                <td>{{ venta.creado_en|date:"d/m/Y H:i" }}</td>
+                <td>
+                  {% if venta.cliente %}
+                    <span class="table__primary">{{ venta.cliente.nombre }}</span>
+                    {% if venta.cliente.numero_documento %}
+                      <span class="table__secondary">
+                        {{ venta.cliente.numero_documento }}
+                      </span>
+                    {% endif %}
+                  {% else %}
+                    <span class="text-muted">Consumidor final</span>
+                  {% endif %}
+                </td>
+                <td>
+                  {% with detalles=venta.detalles.all %}
+                    {% if detalles %}
+                      <span class="table__primary">
+                        {{ detalles.0.nombre_producto }}
+                      </span>
+                      <span class="table__secondary">
+                        {{ detalles|length }} línea{{ detalles|length|pluralize }}
+                        {% if detalles|length > 1 %}
+                          · +{{ detalles|length|add:"-1" }} más
+                        {% endif %}
+                      </span>
+                    {% else %}
+                      <span class="text-muted">Sin detalle</span>
+                    {% endif %}
+                  {% endwith %}
+                </td>
+                <td>
+                  <strong>Bs {{ venta.total|stringformat:"0.2f" }}</strong>
+                </td>
+                <td>
+                  <span class="badge badge--success">Registrada</span>
+                </td>
+                <td class="table__actions">
+                  <a
+                    class="btn btn--secondary btn--small"
+                    href="{% url 'ventas:detalle' venta.pk %}"
+                  >Ver ficha</a>
+                  <a
+                    class="btn btn--secondary btn--small"
+                    href="{% url 'ventas:ticket' venta.pk %}"
+                  >Ticket</a>
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <div class="empty-state">
+        <span class="empty-state__icon" aria-hidden="true">VT</span>
+        {% if q or cliente_id %}
+          <h3>No encontramos ventas</h3>
+          <p>Prueba con otro término de búsqueda o limpia los filtros.</p>
+          <p class="empty-state__actions">
+            <a class="btn btn--secondary" href="{% url 'ventas:index' %}">
+              Limpiar filtros
+            </a>
+          </p>
+        {% else %}
+          <h3>Aún no hay ventas registradas</h3>
+          <p>Registra la primera venta para comenzar el historial.</p>
+          <p class="empty-state__actions">
+            <a class="btn btn--primary" href="{% url 'ventas:crear' %}">
+              Registrar primera venta
+            </a>
+          </p>
+        {% endif %}
+      </div>
+    {% endif %}
+
+    {% if is_paginated %}
+      <nav class="pagination" aria-label="Paginación de ventas">
+        <p class="pagination__summary">
+          Página {{ page_obj.number }} de {{ paginator.num_pages }}
+        </p>
+        <div class="pagination__links">
+          {% if page_obj.has_previous %}
+            <a
+              class="btn btn--secondary btn--small"
+              href="?{% if querystring %}{{ querystring }}&{% endif %}page={{ page_obj.previous_page_number }}"
+            >Anterior</a>
+          {% endif %}
+          {% if page_obj.has_next %}
+            <a
+              class="btn btn--secondary btn--small"
+              href="?{% if querystring %}{{ querystring }}&{% endif %}page={{ page_obj.next_page_number }}"
+            >Siguiente</a>
+          {% endif %}
+        </div>
+      </nav>
+    {% endif %}
+  </section>
+{% endblock %}

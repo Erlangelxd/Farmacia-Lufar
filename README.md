@@ -5,9 +5,10 @@ proveedores, ventas, usuarios y reportes de Farmacia Lufar. Está construido con
 Python, Django, SQLite y plantillas renderizadas en el servidor.
 
 > **Estado actual:** estructura base funcional con autenticación, grupos,
-> navegación, dashboard provisional y módulo de clientes con registro y
-> consulta. Las demás aplicaciones siguen en estructura inicial. **No incluye
-> todavía CRUD de catálogo, compras o ventas ni movimientos de inventario.**
+> navegación, dashboard provisional, módulo de clientes con registro y consulta,
+> y módulo de ventas con catálogo mínimo de productos, cálculo de totales y
+> ticket imprimible. **No incluye todavía CRUD visual de catálogo, compras,
+> movimientos de inventario ni edición o anulación de ventas.**
 
 ## 1. Objetivo y alcance inicial
 
@@ -27,18 +28,26 @@ autenticación, la navegación ni la organización del proyecto.
   mensajes y área de contenido.
 - Dashboard con indicadores de ejemplo marcados como **provisionales**.
 - Módulo de clientes: registro, listado con búsqueda y filtro por estado,
-  ficha de consulta y administración desde Django Admin.
-- Rutas iniciales y páginas de alcance para los demás módulos.
+  ficha de consulta, historial de ventas y administración desde Django Admin.
+- Catálogo mínimo: modelo `Producto` con código, nombre, precio de venta y
+  estado, administrado desde Django Admin.
+- Módulo de ventas: registro con líneas de detalle, cálculo de total y cambio,
+  listado con búsqueda y filtro por cliente, ficha de consulta y ticket
+  imprimible de 80 mm.
+- Rutas y páginas de alcance para catálogo visual, inventario, compras y
+  reportes.
 - Estilos y JavaScript locales, sin CDN.
-- Pruebas transversales y pruebas propias del módulo de clientes.
+- Pruebas transversales y pruebas propias de clientes, catálogo y ventas.
 - Documentación de arquitectura y decisiones en `docs/`.
 
 ### Fuera de alcance en esta entrega
 
-- Modelos y CRUD completos de catálogo, proveedores, compras y ventas.
-- Edición y eliminación de clientes, y su historial comercial.
-- Movimientos reales de inventario.
-- Facturación, impuestos, precios y reglas comerciales.
+- CRUD visual de catálogo, proveedores, compras, inventario y reportes.
+- Edición, eliminación o anulación de ventas.
+- Edición y eliminación de clientes; su historial comercial ya se muestra en la
+  ficha.
+- Movimientos reales de inventario y descuento de stock al vender.
+- Facturación fiscal, impuestos, descuentos y reglas comerciales avanzadas.
 - Reportes con datos reales.
 - Recuperación de contraseña por correo.
 - Despliegue en producción, HTTPS y backups automáticos.
@@ -54,11 +63,11 @@ API REST separada, React ni servicios en la nube.
 |---|---|---|
 | `core` | Dashboard, mixins, filtros y utilidades compartidas. | Base implementada |
 | `accounts` | Login, logout, perfil, usuarios, grupos y autorización por rol. | Base funcional |
-| `catalogo` | Categorías, productos, presentaciones y precios. | Ruta y estructura |
+| `catalogo` | Productos, categorías, presentaciones y precios. | Modelo mínimo `Producto` y admin; CRUD visual pendiente |
 | `inventario` | Existencias, lotes y movimientos de entrada, salida y ajuste. | Ruta y estructura |
 | `compras` | Proveedores, compras, detalle y recepción de mercadería. | Ruta y estructura |
-| `clientes` | Datos de clientes e historial comercial. | Registro y consulta implementados |
-| `ventas` | Ventas, detalles, pagos y comprobantes. | Ruta y estructura |
+| `clientes` | Datos de clientes e historial comercial. | Registro, consulta e historial implementados |
+| `ventas` | Ventas, detalles, cálculo de totales, cambio y ticket. | Registro, consulta y ticket implementados |
 | `reportes` | Consultas e informes de solo lectura. | Ruta y estructura |
 
 Decisiones importantes:
@@ -69,13 +78,27 @@ Decisiones importantes:
   usuario personalizado en esta etapa.
 - **Los permisos por modelo se asignarán después.** Por ahora los grupos
   identifican el rol y `RoleRequiredMixin` restringe la vista de usuarios al
-  grupo `Administrador`. Las vistas de clientes usan `LoginRequiredMixin` y
-  quedarán sujetas a los permisos por modelo cuando se definan.
+  grupo `Administrador`. Las vistas de clientes y ventas usan
+  `LoginRequiredMixin` y quedarán sujetas a los permisos por modelo cuando se
+  definan.
 - **Clientes no guarda correo ni dirección en esta etapa.** El documento es
   opcional; si se registra, el tipo y el número deben ingresarse juntos y el
   número es único por tipo.
 - **Inventario será el único dueño de las existencias.** Compras y ventas
   deberán registrar sus movimientos mediante servicios transaccionales.
+- **Ventas usa un catálogo mínimo.** El modelo `Producto` tiene código, nombre,
+  precio de venta y estado. Se administra desde Django Admin; el CRUD visual
+  del catálogo se implementará después.
+- **Las ventas son inmutables en esta etapa.** No se editan, eliminan ni anulan
+  desde la interfaz. El admin de ventas es de solo lectura para proteger los
+  registros financieros.
+- **El pago es solo en efectivo.** La venta guarda el monto recibido y calcula
+  el cambio; no se procesan tarjetas ni otros medios.
+- **La venta conserva una copia histórica del producto.** Cada detalle guarda
+  código, nombre y precio unitario del momento de la venta, aunque el catálogo
+  cambie después. El stock no se descuenta todavía.
+- **El ticket es HTML imprimible de 80 mm.** Se genera con plantillas y CSS de
+  impresión locales, sin librerías PDF ni CDN.
 
 El detalle completo, los límites entre módulos, el roadmap y las convenciones
 están en [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
@@ -140,10 +163,12 @@ funcionar.
 python manage.py migrate
 ```
 
-Esto crea `db.sqlite3` y aplica las migraciones de Django, de `accounts` y de
-`clientes`. La migración `accounts.0001_create_default_groups` crea los grupos
-base de forma idempotente y `clientes.0001_initial` crea la tabla de clientes.
-Puedes verificar los grupos con:
+Esto crea `db.sqlite3` y aplica las migraciones de Django, de `accounts`, de
+`clientes`, de `catalogo` y de `ventas`. La migración
+`accounts.0001_create_default_groups` crea los grupos base de forma idempotente;
+`clientes.0001_initial` crea la tabla de clientes; `catalogo.0001_initial` crea
+el modelo mínimo `Producto`; y `ventas.0001_initial` crea `Venta` y
+`DetalleVenta`. Puedes verificar los grupos con:
 
 ```bash
 python manage.py shell -c "from django.contrib.auth.models import Group; print(list(Group.objects.values_list('name', flat=True)))"
@@ -193,13 +218,13 @@ python manage.py test
 python manage.py makemigrations --check --dry-run
 ```
 
-Las 49 pruebas actuales cubren:
+Las 104 pruebas actuales cubren:
 
 - Carga de las ocho aplicaciones.
 - Resolución de las rutas iniciales.
 - Creación de los grupos base.
 - Redirección al login de todas las vistas de gestión.
-- Protección CSRF del formulario de login y del registro de clientes.
+- Protección CSRF del login, del registro de clientes y del registro de ventas.
 - Login válido e inválido.
 - Mensaje de bienvenida después del login.
 - Logout solo por POST y limpieza de sesión.
@@ -214,8 +239,19 @@ Las 49 pruebas actuales cubren:
   duplicado y ausencia de campos de correo y dirección.
 - Listado de clientes con búsqueda por nombre, documento o teléfono, filtro por
   estado y paginación.
-- Registro de clientes, asignación de `creado_por`, mensaje de éxito y ficha de
-  consulta.
+- Registro de clientes, asignación de `creado_por`, mensaje de éxito, ficha de
+  consulta e historial de ventas.
+- Validación del modelo `Producto`: normalización de código y nombre, unicidad
+  sin distinguir mayúsculas, precio no negativo y orden por nombre.
+- Servicio transaccional de ventas: cálculo de total y cambio, copia histórica
+  de producto, cliente opcional, producto inactivo, cantidades inválidas,
+  productos duplicados, efectivo insuficiente, total máximo y rollback.
+- Formularios de venta: cliente opcional, solo clientes y productos activos,
+  pago en efectivo, mínimo una línea y validación de cantidades.
+- Vistas de ventas: listado con búsqueda por número, cliente o producto, filtro
+  por cliente, paginación, registro, detalle, ticket imprimible y `404`.
+- Ticket de 80 mm con datos de la venta, detalle, total, efectivo, cambio y
+  acciones de impresión.
 
 Las pruebas usan una base de datos temporal y no modifican `db.sqlite3`.
 
@@ -234,15 +270,22 @@ Abre `http://127.0.0.1:8000/` en el navegador. Para detener el servidor usa
 | `/cuentas/login/` | Inicio de sesión. |
 | `/cuentas/` | Perfil de la cuenta autenticada. |
 | `/cuentas/usuarios/` | Usuarios y grupos; solo Administrador o superusuario. |
-| `/catalogo/` | Página inicial del catálogo. |
+| `/catalogo/` | Página inicial del catálogo; el CRUD visual está pendiente. |
 | `/inventario/` | Página inicial de inventario. |
 | `/compras/` | Página inicial de compras. |
 | `/clientes/` | Listado y búsqueda de clientes. |
 | `/clientes/nuevo/` | Registro de un cliente. |
-| `/clientes/<id>/` | Ficha de consulta de un cliente. |
-| `/ventas/` | Página inicial de ventas. |
+| `/clientes/<id>/` | Ficha de consulta e historial de ventas del cliente. |
+| `/ventas/` | Listado y búsqueda de ventas. |
+| `/ventas/nueva/` | Registro de una venta. |
+| `/ventas/<id>/` | Ficha de consulta de una venta. |
+| `/ventas/<id>/ticket/` | Ticket imprimible de 80 mm. |
 | `/reportes/` | Página inicial de reportes. |
-| `/admin/` | Administración de Django. |
+| `/admin/` | Administración de Django, incluido el catálogo de productos. |
+
+Los productos que se pueden vender se cargan desde `/admin/` en
+**Catálogo → Productos**. Deben estar activos y tener un precio de venta. El
+CRUD visual del catálogo se implementará en una etapa posterior.
 
 Si el puerto está ocupado:
 
@@ -391,6 +434,13 @@ el paso a PostgreSQL si habrá varios usuarios concurrentes.
 │   │   ├── tests.py
 │   │   └── migrations/0001_create_default_groups.py
 │   ├── catalogo/
+│   │   ├── admin.py
+│   │   ├── apps.py
+│   │   ├── models.py
+│   │   ├── urls.py
+│   │   ├── views.py
+│   │   ├── tests.py
+│   │   └── migrations/0001_initial.py
 │   ├── inventario/
 │   ├── compras/
 │   ├── clientes/
@@ -403,6 +453,15 @@ el paso a PostgreSQL si habrá varios usuarios concurrentes.
 │   │   ├── tests.py
 │   │   └── migrations/0001_initial.py
 │   ├── ventas/
+│   │   ├── admin.py
+│   │   ├── apps.py
+│   │   ├── forms.py
+│   │   ├── models.py
+│   │   ├── services.py
+│   │   ├── urls.py
+│   │   ├── views.py
+│   │   ├── tests.py
+│   │   └── migrations/0001_initial.py
 │   └── reportes/
 ├── templates/
 │   ├── base.html
@@ -412,10 +471,12 @@ el paso a PostgreSQL si habrá varios usuarios concurrentes.
 │   ├── core/
 │   ├── accounts/
 │   ├── clientes/
+│   ├── ventas/
 │   └── registration/login.html
 ├── static/
 │   ├── css/styles.css
 │   ├── js/app.js
+│   ├── js/ventas.js
 │   └── img/logo.svg
 ├── tests/
 │   └── test_smoke.py
@@ -429,27 +490,36 @@ el paso a PostgreSQL si habrá varios usuarios concurrentes.
 - La zona horaria inicial es `America/La_Paz`; se puede cambiar con
   `DJANGO_TIME_ZONE` sin modificar el código.
 - Los indicadores del dashboard son ejemplos visuales, no datos reales.
-- Los grupos base todavía no tienen permisos por modelo asignados. El modelo
-  `Cliente` ya existe, pero sus vistas se protegen por autenticación; los
-  permisos por rol se incorporarán más adelante.
+- Los grupos base todavía no tienen permisos por modelo asignados. Los modelos
+  `Cliente`, `Producto`, `Venta` y `DetalleVenta` ya existen, pero las vistas se
+  protegen por autenticación; los permisos por rol se incorporarán más adelante.
 - No se implementó recuperación de contraseña por correo; el administrador
   gestiona las cuentas desde Django Admin.
 - Proveedor se implementará dentro de `compras`.
 - Cliente se registra con nombre obligatorio; tipo y número de documento son
   opcionales y deben ingresarse juntos. No se guardan correo ni dirección en
   esta etapa.
+- El catálogo de productos es mínimo y se administra desde Django Admin; no hay
+  categorías, presentaciones, imágenes ni stock en esta etapa.
+- Las ventas son inmutables: no se editan, eliminan ni anulan desde la
+  interfaz. El admin de ventas es de solo lectura.
+- El pago es solo en efectivo. La venta registra el monto recibido y calcula el
+  cambio; no se procesan tarjetas ni otros medios.
+- La venta no descuenta stock. Esa integración se hará cuando exista
+  `inventario`.
+- El ticket es un comprobante interno de 80 mm; no es una factura fiscal.
 - SQLite es suficiente para la etapa local; no se asume concurrencia alta.
-- No se implementaron reglas de negocio de precios, impuestos, descuentos,
-  vencimientos ni facturación.
+- No se implementaron impuestos, descuentos, vencimientos ni facturación
+  fiscal.
 
 ## Próximos pasos
 
-1. Implementar `catalogo` con `Categoria`, `Producto`, formularios y CRUD.
+1. Implementar el CRUD visual de `catalogo` y las categorías.
 2. Implementar existencias y movimientos transaccionales en `inventario`.
-3. Implementar `compras` y la recepción que actualiza inventario.
-4. Implementar `ventas` y la salida de inventario en la misma transacción.
+3. Integrar la salida de inventario en el servicio transaccional de ventas.
+4. Implementar `compras` y la recepción que actualiza inventario.
 5. Implementar reportes de solo lectura.
-6. Completar clientes con edición/eliminación y su historial de ventas.
+6. Completar clientes con edición y desactivación.
 7. Asignar permisos por modelo a los grupos y ampliar las pruebas.
 8. Endurecer seguridad, backups y despliegue.
 
@@ -461,4 +531,5 @@ el paso a PostgreSQL si habrá varios usuarios concurrentes.
 - [ADR-003: SQLite y operación local sin CDN](docs/adr/ADR-003-sqlite-local-sin-cdn.md)
 - [ADR-004: Proveedores dentro de compras](docs/adr/ADR-004-proveedores-en-compras.md)
 - [ADR-005: Registro y consulta de clientes](docs/adr/ADR-005-clientes-registro-consulta.md)
+- [ADR-006: Ventas con catálogo mínimo y ticket HTML](docs/adr/ADR-006-ventas-catalogo-minimo-ticket.md)
 - [CHANGELOG](CHANGELOG.md)

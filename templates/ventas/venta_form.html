@@ -1,0 +1,251 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Registrar venta | Farmacia Lufar{% endblock %}
+
+{% block content %}
+  <div class="page-header">
+    <div>
+      <p class="eyebrow">Ventas</p>
+      <h1>Registrar venta</h1>
+      <p class="page-header__text">
+        Selecciona el cliente, agrega los productos y confirma el efectivo
+        recibido. El total se calcula automáticamente.
+      </p>
+    </div>
+    <a class="btn btn--secondary" href="{% url 'ventas:index' %}">
+      Volver al listado
+    </a>
+  </div>
+
+  {% if not productos_disponibles %}
+    <p class="notice notice--warning">
+      No hay productos activos. Pide al administrador que registre productos
+      en el catálogo antes de registrar una venta.
+    </p>
+  {% endif %}
+
+  <form method="post" class="sale-form" data-sale-form novalidate>
+    {% csrf_token %}
+
+    {% if form.non_field_errors %}
+      <div class="form-errors" role="alert">
+        {% for error in form.non_field_errors %}
+          <p>{{ error }}</p>
+        {% endfor %}
+      </div>
+    {% endif %}
+
+    <section class="card">
+      <div class="card__header">
+        <div>
+          <p class="eyebrow">Datos generales</p>
+          <h2>Cliente y pago</h2>
+        </div>
+        <span class="badge badge--soft">{% now "d/m/Y H:i" %}</span>
+      </div>
+
+      <div class="form-grid">
+        <div class="form-field form-field--full">
+          <label for="{{ form.cliente.id_for_label }}">
+            {{ form.cliente.label }}
+          </label>
+          {{ form.cliente }}
+          {% for error in form.cliente.errors %}
+            <p class="field-error">{{ error }}</p>
+          {% endfor %}
+          {% if form.cliente.help_text %}
+            <p class="field-help">
+              {{ form.cliente.help_text }}
+              <a
+                href="{% url 'clientes:crear' %}"
+                target="_blank"
+                rel="noopener"
+              >Registrar un cliente nuevo</a>.
+            </p>
+          {% endif %}
+        </div>
+
+        <div class="form-field">
+          <label for="{{ form.metodo_pago.id_for_label }}">
+            {{ form.metodo_pago.label }}
+          </label>
+          {{ form.metodo_pago }}
+          {% for error in form.metodo_pago.errors %}
+            <p class="field-error">{{ error }}</p>
+          {% endfor %}
+        </div>
+
+        <div class="form-field">
+          <label for="{{ form.monto_recibido.id_for_label }}">
+            {{ form.monto_recibido.label }}
+            <span class="required-mark" aria-hidden="true">*</span>
+          </label>
+          {{ form.monto_recibido }}
+          {% for error in form.monto_recibido.errors %}
+            <p class="field-error">{{ error }}</p>
+          {% endfor %}
+          {% if form.monto_recibido.help_text %}
+            <p class="field-help">{{ form.monto_recibido.help_text }}</p>
+          {% endif %}
+        </div>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="card__header">
+        <div>
+          <p class="eyebrow">Detalle</p>
+          <h2>Productos de la venta</h2>
+          <p class="card__hint">
+            El precio se toma del catálogo. Ingresa solo la cantidad.
+          </p>
+        </div>
+        <button
+          type="button"
+          class="btn btn--secondary btn--small"
+          data-sale-add
+          {% if not productos_disponibles %}disabled{% endif %}
+        >Agregar producto</button>
+      </div>
+
+      {{ formset.management_form }}
+
+      {% if formset.non_form_errors %}
+        <div class="form-errors" role="alert">
+          {% for error in formset.non_form_errors %}
+            <p>{{ error }}</p>
+          {% endfor %}
+        </div>
+      {% endif %}
+
+      <div class="table-wrap">
+        <table class="table sale-lines">
+          <thead>
+            <tr>
+              <th scope="col">Producto</th>
+              <th scope="col">Cantidad</th>
+              <th scope="col">Precio unitario</th>
+              <th scope="col">Subtotal</th>
+              <th scope="col"><span class="sr-only">Acciones</span></th>
+            </tr>
+          </thead>
+          <tbody data-sale-lines>
+            {% for form in formset %}
+              <tr
+                class="sale-line{% if form.DELETE.value %} is-removed{% endif %}"
+                data-sale-line
+              >
+                <td>
+                  {{ form.id }}
+                  {{ form.producto }}
+                  {% for error in form.producto.errors %}
+                    <p class="field-error">{{ error }}</p>
+                  {% endfor %}
+                  {% for error in form.non_field_errors %}
+                    <p class="field-error">{{ error }}</p>
+                  {% endfor %}
+                </td>
+                <td>
+                  {{ form.cantidad }}
+                  {% for error in form.cantidad.errors %}
+                    <p class="field-error">{{ error }}</p>
+                  {% endfor %}
+                </td>
+                <td>
+                  <span class="sale-line__money">
+                    Bs <span data-line-price>0.00</span>
+                  </span>
+                </td>
+                <td>
+                  <span class="sale-line__money">
+                    Bs <span data-line-subtotal>0.00</span>
+                  </span>
+                </td>
+                <td class="table__actions">
+                  <span class="sale-line__delete">{{ form.DELETE }}</span>
+                  <button
+                    type="button"
+                    class="btn btn--secondary btn--small"
+                    data-sale-remove
+                  >Quitar</button>
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+
+      <div class="sale-summary">
+        <div class="sale-summary__row">
+          <span>Total</span>
+          <strong>Bs <span data-sale-total>0.00</span></strong>
+        </div>
+        <div class="sale-summary__row">
+          <span>Efectivo recibido</span>
+          <strong>Bs <span data-sale-received-preview>0.00</span></strong>
+        </div>
+        <div class="sale-summary__row sale-summary__row--change" data-sale-change-row>
+          <span>Cambio</span>
+          <strong>Bs <span data-sale-change>0.00</span></strong>
+        </div>
+      </div>
+
+      <p class="form-note">
+        El total definitivo se calcula y valida en el servidor al guardar la
+        venta.
+      </p>
+      <noscript>
+        <p class="notice notice--warning">
+          La vista previa del total requiere JavaScript. El servidor calculará
+          el total al guardar.
+        </p>
+      </noscript>
+
+      <div class="form-actions">
+        <button
+          class="btn btn--primary"
+          type="submit"
+          {% if not productos_disponibles %}disabled{% endif %}
+        >Registrar venta</button>
+        <a class="btn btn--secondary" href="{% url 'ventas:index' %}">
+          Cancelar
+        </a>
+      </div>
+    </section>
+  </form>
+
+  <template id="sale-line-template">
+    <tr class="sale-line" data-sale-line>
+      <td>
+        {{ formset.empty_form.id }}
+        {{ formset.empty_form.producto }}
+      </td>
+      <td>{{ formset.empty_form.cantidad }}</td>
+      <td>
+        <span class="sale-line__money">
+          Bs <span data-line-price>0.00</span>
+        </span>
+      </td>
+      <td>
+        <span class="sale-line__money">
+          Bs <span data-line-subtotal>0.00</span>
+        </span>
+      </td>
+      <td class="table__actions">
+        <span class="sale-line__delete">
+          {{ formset.empty_form.DELETE }}
+        </span>
+        <button
+          type="button"
+          class="btn btn--secondary btn--small"
+          data-sale-remove
+        >Quitar</button>
+      </td>
+    </tr>
+  </template>
+{% endblock %}
+
+{% block extra_js %}
+  <script src="{% static 'js/ventas.js' %}" defer></script>
+{% endblock %}

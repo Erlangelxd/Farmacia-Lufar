@@ -1,6 +1,6 @@
 # Arquitectura — Farmacia Lufar
 
-**Estado:** base funcional con autenticación y módulo de clientes (registro y consulta). Las demás apps siguen en estructura inicial.
+**Estado:** base funcional con autenticación, módulo de clientes (registro, consulta e historial) y módulo de ventas (registro, consulta y ticket) sobre un catálogo mínimo de productos. Las apps de inventario, compras y reportes siguen en estructura inicial.
 
 ## 1. Visión general
 
@@ -21,15 +21,15 @@ flowchart TB
 
 ## 2. Responsabilidad de las aplicaciones
 
-| App | Responsabilidad | Estado inicial |
+| App | Responsabilidad | Estado |
 |---|---|---|
 | `core` | Dashboard, mixins, filtros y utilidades compartidas. No contiene modelos de negocio. | Implementado como base |
 | `accounts` | Login, logout, perfil, grupos `Administrador` y `Vendedor`, autorización por rol. | Base funcional |
-| `catalogo` | Categorías, productos, presentaciones y precios. | Solo estructura y ruta |
+| `catalogo` | Categorías, productos, presentaciones y precios. | Modelo mínimo `Producto` y admin; CRUD visual pendiente |
 | `inventario` | Existencias, lotes y movimientos de entrada, salida y ajuste. | Solo estructura y ruta |
 | `compras` | Proveedores, compras, detalle y recepción de mercadería. | Solo estructura y ruta |
-| `clientes` | Datos de clientes e historial comercial. | Registro y consulta implementados |
-| `ventas` | Ventas, detalles, pagos y comprobantes. | Solo estructura y ruta |
+| `clientes` | Datos de clientes e historial comercial. | Registro, consulta e historial implementados |
+| `ventas` | Ventas, detalles, cálculo de totales, cambio y ticket. | Registro, consulta y ticket implementados |
 | `reportes` | Consultas e informes de solo lectura. No tendrá modelos propios. | Solo estructura y ruta |
 
 ### Decisión sobre proveedores
@@ -60,9 +60,9 @@ sequenceDiagram
 
 - Se usa el modelo `User` integrado de Django. No se crea un modelo de usuario propio en esta etapa.
 - Los grupos base se crean mediante la migración `accounts.0001_create_default_groups`.
-- `LoginRequiredMixin` protege todas las vistas de gestión. Las vistas de clientes usan este mixin en esta etapa.
+- `LoginRequiredMixin` protege todas las vistas de gestión. Las vistas de clientes, catálogo mínimo y ventas usan este mixin en esta etapa.
 - `RoleRequiredMixin` permite restringir una vista a grupos concretos. Los superusuarios siempre tienen acceso.
-- Los permisos por modelo se asignarán a los grupos cuando existan los modelos de cada app. El modelo `Cliente` ya existe, pero sus permisos por rol todavía no se aplican.
+- Los permisos por modelo se asignarán a los grupos cuando existan los modelos de cada app. Los modelos `Cliente`, `Producto`, `Venta` y `DetalleVenta` ya existen, pero sus permisos por rol todavía no se aplican en las vistas del sistema.
 - El login y el logout usan las vistas de Django y protección CSRF. El logout solo acepta POST.
 
 ## 4. Límites entre módulos
@@ -75,13 +75,49 @@ Estas reglas buscan evitar dependencias circulares y duplicación de lógica:
 4. `inventario` es el único módulo que debe alterar existencias. Compras y ventas deberán solicitar movimientos a través de una función de servicio transaccional.
 5. `compras` es dueño de `Proveedor`, `Compra` y `DetalleCompra`.
 6. `clientes` es dueño de `Cliente`. `ventas` podrá referenciarlo, pero no modificar sus datos maestros.
-7. `ventas` es dueño de `Venta`, `DetalleVenta` y `Pago`.
+7. `ventas` es dueño de `Venta` y `DetalleVenta`. En esta etapa el único medio de pago es efectivo, por lo que no existe un modelo `Pago` separado.
 8. `reportes` solo consulta; no debe escribir datos ni crear dependencias inversas.
 9. `core` contiene infraestructura compartida, no reglas de negocio de otros módulos.
 10. Las operaciones que afecten varias tablas (venta + inventario, compra + inventario) se ejecutarán dentro de `transaction.atomic()` y con bloqueo de stock cuando corresponda.
-11. Las vistas deben mantenerse delgadas. Cuando una operación tenga varias reglas, se extraerá a un servicio del módulo correspondiente.
+11. Las vistas deben mantenerse delgadas. Cuando una operación tenga varias reglas, se extraerá a un servicio del módulo correspondiente. El registro de ventas usa `apps/ventas/services.py`.
+12. `catalogo` es dueño del precio de venta; `ventas` guarda una copia histórica en `DetalleVenta` y no modifica el producto.
 
-## 5. Convenciones del equipo
+## 5. Flujo de venta
+
+```mermaid
+sequenceDiagram
+    actor V as Vendedor
+    participant F as Formulario y formset
+    participant S as registrar_venta()
+    participant DB as SQLite
+
+    V->>F: Cliente opcional, efectivo y líneas
+    F->>F: Valida clientes y productos activos, cantidades y mínimo una línea
+    F->>S: Datos limpios
+    S->>S: Calcula total, valida efectivo y evita productos repetidos
+    S->>DB: BEGIN
+    S->>DB: INSERT Venta
+    S->>DB: INSERT DetalleVenta (copia de código, nombre y precio)
+    S->>DB: COMMIT
+    S-->>F: Venta registrada
+    F-->>V: Redirección a la ficha de la venta
+    V->>F: Abre el ticket imprimible de 80 mm
+```
+
+Reglas de esta etapa:
+
+- El cliente es opcional; si no se selecciona, la venta queda como
+  **Consumidor final**.
+- El precio unitario se toma del catálogo y se copia al detalle. El navegador no
+  puede modificarlo.
+- El pago es solo en efectivo. El total y el cambio se calculan en el servidor.
+- La venta es inmutable: no se edita, elimina ni anula desde la interfaz.
+- No se descuenta stock. La integración con `inventario` queda para una etapa
+  posterior.
+- El ticket se genera como HTML imprimible de 80 mm con CSS `@media print`; no
+  se usa una librería PDF.
+
+## 6. Convenciones del equipo
 
 - **Idioma:** nombres de dominio y textos de interfaz en español; APIs y conceptos propios de Django en inglés. Evitar tildes en identificadores de código (`Categoria`, no `Categoría`).
 - **Modelos:** nombres en singular (`Producto`, `Compra`, `Venta`) y `related_name` explícitos en las relaciones.
@@ -94,28 +130,27 @@ Estas reglas buscan evitar dependencias circulares y duplicación de lógica:
 - **Seguridad:** toda vista de gestión debe ser autenticada; toda escritura debe usar POST + CSRF; no se guardan contraseñas ni secretos en el repositorio.
 - **Git:** una rama por funcionalidad, PR hacia `develop` y revisión del otro desarrollador.
 
-## 6. Base de datos y migraciones
+## 7. Base de datos y migraciones
 
 La base inicial es SQLite (`db.sqlite3`), ignorada por Git. SQLite es suficiente para el desarrollo local y una única instancia, pero tiene limitaciones de concurrencia. Si el sistema se despliega para varios usuarios simultáneos, se evaluará PostgreSQL antes de la puesta en producción.
 
-La migración `clientes.0001_initial` crea la tabla `Cliente` con sus restricciones de documento. Las siguientes etapas deben crear los modelos en este orden sugerido para respetar dependencias:
+Las migraciones actuales son `clientes.0001_initial` (tabla `Cliente` con sus restricciones de documento), `catalogo.0001_initial` (modelo mínimo `Producto`) y `ventas.0001_initial` (`Venta` y `DetalleVenta`). Las siguientes etapas deben crear los modelos pendientes en este orden sugerido para respetar dependencias:
 
-1. `catalogo`: `Categoria`, `Producto`.
+1. `catalogo`: completar `Categoria`, presentaciones y el CRUD visual; `Producto` ya existe en su versión mínima.
 2. `inventario`: existencias y movimientos, referenciando `catalogo.Producto`.
-3. `clientes`: `Cliente` (registro y consulta implementados).
-4. `compras`: `Proveedor`, `Compra`, `DetalleCompra`.
-5. `ventas`: `Venta`, `DetalleVenta`, `Pago`.
-6. `reportes`: consultas sin modelos.
+3. `compras`: `Proveedor`, `Compra`, `DetalleCompra`.
+4. `ventas`: integrar la salida de inventario en el servicio transaccional; `Venta` y `DetalleVenta` ya existen.
+5. `reportes`: consultas sin modelos.
 
-## 7. Roadmap sugerido
+## 8. Roadmap sugerido
 
 | Fase | Entregable | Dependencias |
 |---|---|---|
-| 1 | Catálogo con CRUD y pruebas | `accounts`, `core` |
+| 1 | Catálogo mínimo (implementado) y CRUD visual de productos | `accounts`, `core` |
 | 2 | Inventario y movimientos transaccionales | Fase 1 |
-| 3 | Clientes: registro y consulta (implementado) | `accounts` |
+| 3 | Clientes: registro, consulta e historial (implementado) | `accounts` |
 | 4 | Compras, proveedores y recepción | Fases 1 y 2 |
-| 5 | Ventas, pagos y salida de inventario | Fases 1, 2 y 3 |
+| 5 | Ventas: registro, total, cambio y ticket (implementado); salida de inventario pendiente | Fases 1, 2 y 3 |
 | 6 | Reportes de ventas, compras y stock | Fases 2, 4 y 5 |
 | 7 | Endurecimiento de seguridad, backups y despliegue | Todas |
 
@@ -126,10 +161,11 @@ La migración `clientes.0001_initial` crea la tabla `Cliente` con sus restriccio
 - **Cambios compartidos:** `core` y `accounts` requieren revisión del otro desarrollador.
 - Las integraciones entre ventas/compras e inventario se acuerdan antes de implementarse y se prueban en una rama conjunta.
 
-## 8. Decisiones registradas
+## 9. Decisiones registradas
 
 - [ADR-001: Monolito modular con Django MVT](adr/ADR-001-arquitectura-monolitica-modular.md)
 - [ADR-002: User integrado y autorización por grupos](adr/ADR-002-user-integrado-y-grupos.md)
 - [ADR-003: SQLite y operación local sin CDN](adr/ADR-003-sqlite-local-sin-cdn.md)
 - [ADR-004: Proveedores dentro de compras](adr/ADR-004-proveedores-en-compras.md)
 - [ADR-005: Registro y consulta de clientes](adr/ADR-005-clientes-registro-consulta.md)
+- [ADR-006: Ventas con catálogo mínimo y ticket HTML](adr/ADR-006-ventas-catalogo-minimo-ticket.md)

@@ -301,7 +301,8 @@ class ClienteViewTests(TestCase):
         self.assertContains(response, "Cédula de Identidad 12345678")
         self.assertContains(response, "71234567")
         self.assertContains(response, "Historial comercial")
-        self.assertContains(response, "Próxima etapa")
+        self.assertContains(response, "Sin historial todavía")
+        self.assertContains(response, "Sin ventas registradas")
 
     def test_detalle_cliente_sin_usuario_registrador(self):
         cliente = Cliente.objects.create(nombre="Cliente del sistema")

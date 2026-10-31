@@ -1,0 +1,106 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Ticket {{ venta.numero }} | Farmacia Lufar{% endblock %}
+
+{% block body_class %}ticket-page{% endblock %}
+{% block main_class %}ticket-shell{% endblock %}
+{% block main_inner_class %}ticket-shell__inner{% endblock %}
+
+{% block content %}
+  <div class="ticket-actions no-print">
+    <a class="btn btn--secondary" href="{% url 'ventas:detalle' venta.pk %}">
+      Volver a la venta
+    </a>
+    <button type="button" class="btn btn--primary" data-print-ticket>
+      Imprimir ticket
+    </button>
+  </div>
+
+  <article class="ticket" aria-label="Ticket de venta {{ venta.numero }}">
+    <header class="ticket__header">
+      <img
+        class="ticket__logo"
+        src="{% static 'img/logo.svg' %}"
+        alt=""
+        width="48"
+        height="48"
+      >
+      <h1>Farmacia Lufar</h1>
+      <p>Sistema de gestión</p>
+      <p class="ticket__title">Ticket de venta</p>
+      <p class="ticket__number">{{ venta.numero }}</p>
+    </header>
+
+    <dl class="ticket__meta">
+      <div>
+        <dt>Fecha</dt>
+        <dd>{{ venta.creado_en|date:"d/m/Y H:i" }}</dd>
+      </div>
+      <div>
+        <dt>Cliente</dt>
+        <dd>
+          {% if venta.cliente %}
+            {{ venta.cliente.nombre }}
+          {% else %}
+            Consumidor final
+          {% endif %}
+        </dd>
+      </div>
+      <div>
+        <dt>Vendedor</dt>
+        <dd>
+          {{ venta.vendedor.get_full_name|default:venta.vendedor.username }}
+        </dd>
+      </div>
+    </dl>
+
+    <table class="ticket__items">
+      <thead>
+        <tr>
+          <th scope="col">Producto</th>
+          <th scope="col">Cant.</th>
+          <th scope="col">P. unit.</th>
+          <th scope="col">Subtotal</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for detalle in venta.detalles.all %}
+          <tr>
+            <td>
+              {{ detalle.nombre_producto }}
+              <span class="ticket__code">{{ detalle.codigo_producto }}</span>
+            </td>
+            <td>{{ detalle.cantidad }}</td>
+            <td>{{ detalle.precio_unitario|stringformat:"0.2f" }}</td>
+            <td>{{ detalle.subtotal|stringformat:"0.2f" }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+
+    <dl class="ticket__totals">
+      <div>
+        <dt>Total</dt>
+        <dd>Bs {{ venta.total|stringformat:"0.2f" }}</dd>
+      </div>
+      <div>
+        <dt>Efectivo</dt>
+        <dd>Bs {{ venta.monto_recibido|stringformat:"0.2f" }}</dd>
+      </div>
+      <div>
+        <dt>Cambio</dt>
+        <dd>Bs {{ venta.cambio|stringformat:"0.2f" }}</dd>
+      </div>
+    </dl>
+
+    <footer class="ticket__footer">
+      <p>Gracias por su compra.</p>
+      <p>Comprobante interno. No es factura fiscal.</p>
+    </footer>
+  </article>
+{% endblock %}
+
+{% block extra_js %}
+  <script src="{% static 'js/ventas.js' %}" defer></script>
+{% endblock %}
