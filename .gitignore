@@ -34,6 +34,9 @@ db.sqlite3-journal
 .DS_Store
 Thumbs.db
 
+# Bloqueos de LibreOffice
+.~lock.*#
+
 # Pruebas y cobertura
 .coverage
 htmlcov/
