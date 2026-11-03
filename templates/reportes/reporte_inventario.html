@@ -1,0 +1,245 @@
+{% extends "base.html" %}
+
+{% block title %}Reporte de Inventario | Farmacia Lufar{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <p class="eyebrow">
+      <a href="{% url 'reportes:index' %}">Reportes</a> / Inventario
+    </p>
+    <h1>Reporte de Inventario</h1>
+    <p class="page-header__text">
+      Estado actual del catálogo de productos: activos, precios y los más
+      vendidos de todos los tiempos.
+    </p>
+  </div>
+</div>
+
+<!-- KPIs del catálogo -->
+<div class="stat-grid stat-grid--compact">
+  <article class="stat-card stat-card--green">
+    <span class="stat-card__label">Productos activos</span>
+    <p class="stat-card__value">{{ total_activos }}</p>
+    <p class="stat-card__detail">Disponibles para venta</p>
+  </article>
+  <article class="stat-card stat-card--teal">
+    <span class="stat-card__label">Total en catálogo</span>
+    <p class="stat-card__value">{{ total_productos }}</p>
+    <p class="stat-card__detail">Incluyendo inactivos</p>
+  </article>
+  {% if precio_stats.precio_min %}
+  <article class="stat-card stat-card--amber">
+    <span class="stat-card__label">Precio mínimo</span>
+    <p class="stat-card__value">Bs {{ precio_stats.precio_min|stringformat:"0.2f" }}</p>
+    <p class="stat-card__detail">Producto más económico</p>
+  </article>
+  <article class="stat-card stat-card--blue">
+    <span class="stat-card__label">Precio promedio</span>
+    <p class="stat-card__value">Bs {{ precio_stats.precio_avg|floatformat:2 }}</p>
+    <p class="stat-card__detail">Promedio de activos</p>
+  </article>
+  {% endif %}
+</div>
+
+<div class="report-grid">
+
+  <!-- Productos más vendidos de todos los tiempos -->
+  <section class="card">
+    <div class="card__header">
+      <div>
+        <p class="eyebrow">Historial completo</p>
+        <h2>Productos más vendidos</h2>
+        <p class="card__hint">Top 10 por unidades totales</p>
+      </div>
+    </div>
+    {% if productos_mas_vendidos %}
+      <div class="table-wrap">
+        <table class="table">
+          <thead>
+            <tr>
+              <th scope="col">#</th>
+              <th scope="col">Producto</th>
+              <th scope="col">Precio actual</th>
+              <th scope="col">Unidades</th>
+              <th scope="col">Ingresos</th>
+              <th scope="col">Ventas</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for p in productos_mas_vendidos %}
+              <tr>
+                <td class="text-muted">{{ forloop.counter }}</td>
+                <td>
+                  <span class="table__primary">{{ p.producto__nombre }}</span>
+                  <span class="table__secondary">{{ p.producto__codigo }}</span>
+                </td>
+                <td>Bs {{ p.producto__precio_venta|stringformat:"0.2f" }}</td>
+                <td><strong>{{ p.unidades_vendidas }}</strong></td>
+                <td>Bs {{ p.ingresos_generados|stringformat:"0.2f" }}</td>
+                <td>{{ p.veces_vendido }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <div class="empty-state">
+        <span class="empty-state__icon" aria-hidden="true">IV</span>
+        <h3>Sin ventas registradas</h3>
+        <p>Aún no se han realizado ventas para generar este ranking.</p>
+      </div>
+    {% endif %}
+  </section>
+
+  <!-- Barra de distribución activos/inactivos -->
+  <section class="card">
+    <div class="card__header">
+      <div>
+        <p class="eyebrow">Composición</p>
+        <h2>Estado del catálogo</h2>
+      </div>
+    </div>
+    <div class="inv-gauge">
+      {% if total_productos %}
+        {% with pct_activos=total_activos|default:0 pct_total=total_productos %}
+          <div class="inv-gauge__bar">
+            <div
+              class="inv-gauge__fill inv-gauge__fill--green"
+              style="width: {% widthratio total_activos total_productos 100 %}%"
+              title="Activos"
+            ></div>
+            <div
+              class="inv-gauge__fill inv-gauge__fill--muted"
+              style="width: {% widthratio total_inactivos total_productos 100 %}%"
+              title="Inactivos"
+            ></div>
+          </div>
+        {% endwith %}
+      {% endif %}
+      <div class="inv-gauge__legend">
+        <span class="inv-gauge__dot inv-gauge__dot--green"></span>
+        Activos: {{ total_activos }}
+        &nbsp;&nbsp;
+        <span class="inv-gauge__dot inv-gauge__dot--muted"></span>
+        Inactivos: {{ total_inactivos }}
+      </div>
+    </div>
+    {% if precio_stats.precio_max %}
+    <div class="inv-price-range">
+      <div class="inv-price-range__item">
+        <span class="inv-price-range__label">Mínimo</span>
+        <strong>Bs {{ precio_stats.precio_min|stringformat:"0.2f" }}</strong>
+      </div>
+      <div class="inv-price-range__item">
+        <span class="inv-price-range__label">Promedio</span>
+        <strong>Bs {{ precio_stats.precio_avg|floatformat:2 }}</strong>
+      </div>
+      <div class="inv-price-range__item">
+        <span class="inv-price-range__label">Máximo</span>
+        <strong>Bs {{ precio_stats.precio_max|stringformat:"0.2f" }}</strong>
+      </div>
+    </div>
+    {% endif %}
+  </section>
+
+</div>
+
+<!-- Catálogo completo con filtros -->
+<section class="card">
+  <div class="card__header">
+    <div>
+      <p class="eyebrow">Catálogo</p>
+      <h2>Productos registrados</h2>
+      <p class="card__hint">
+        {% if productos %}
+          {{ productos|length }} resultado{{ productos|length|pluralize }}
+        {% else %}
+          Sin resultados
+        {% endif %}
+      </p>
+    </div>
+    {% if q or estado != "todos" %}
+      <span class="badge badge--soft">Filtro aplicado</span>
+    {% endif %}
+  </div>
+
+  <!-- Formulario de búsqueda -->
+  <form class="filter-form" method="get" action="{% url 'reportes:inventario' %}">
+    <div class="form-field filter-form__search">
+      <label for="q">Buscar producto</label>
+      <input
+        class="form-control"
+        type="search"
+        id="q"
+        name="q"
+        value="{{ q }}"
+        placeholder="Nombre o código"
+      >
+    </div>
+    <div class="form-field">
+      <label for="estado">Estado</label>
+      <select class="form-control" id="estado" name="estado">
+        <option value="todos" {% if estado == "todos" %}selected{% endif %}>Todos</option>
+        <option value="activos" {% if estado == "activos" %}selected{% endif %}>Activos</option>
+        <option value="inactivos" {% if estado == "inactivos" %}selected{% endif %}>Inactivos</option>
+      </select>
+    </div>
+    <div class="filter-form__actions">
+      <button class="btn btn--primary" type="submit">Buscar</button>
+      {% if q or estado != "todos" %}
+        <a class="btn btn--secondary" href="{% url 'reportes:inventario' %}">Limpiar</a>
+      {% endif %}
+    </div>
+  </form>
+
+  {% if productos %}
+    <div class="table-wrap">
+      <table class="table">
+        <thead>
+          <tr>
+            <th scope="col">Código</th>
+            <th scope="col">Nombre</th>
+            <th scope="col">Precio de venta</th>
+            <th scope="col">Estado</th>
+            <th scope="col">Registrado</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for producto in productos %}
+            <tr>
+              <td>
+                <span class="table__primary">{{ producto.codigo }}</span>
+              </td>
+              <td>{{ producto.nombre }}</td>
+              <td><strong>Bs {{ producto.precio_venta|stringformat:"0.2f" }}</strong></td>
+              <td>
+                {% if producto.activo %}
+                  <span class="badge badge--success">Activo</span>
+                {% else %}
+                  <span class="badge badge--neutral">Inactivo</span>
+                {% endif %}
+              </td>
+              <td class="text-muted">{{ producto.creado_en|date:"d/m/Y" }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <div class="empty-state">
+      <span class="empty-state__icon" aria-hidden="true">IV</span>
+      {% if q or estado != "todos" %}
+        <h3>No encontramos productos</h3>
+        <p>Prueba con otro término o limpia los filtros.</p>
+        <p class="empty-state__actions">
+          <a class="btn btn--secondary" href="{% url 'reportes:inventario' %}">Limpiar filtros</a>
+        </p>
+      {% else %}
+        <h3>Catálogo vacío</h3>
+        <p>Aún no hay productos registrados en el sistema.</p>
+      {% endif %}
+    </div>
+  {% endif %}
+</section>
+{% endblock %}

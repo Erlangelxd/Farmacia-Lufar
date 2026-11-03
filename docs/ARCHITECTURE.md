@@ -23,11 +23,11 @@ flowchart TB
 
 | App | Responsabilidad | Estado |
 |---|---|---|
-| `core` | Dashboard, mixins, filtros y utilidades compartidas. No contiene modelos de negocio. | Implementado como base |
+| `core` | Dashboard, mixins, filtros, utilidades compartidas y `ConfiguracionSistema`. No contiene entidades de negocio. | Base implementada |
 | `accounts` | Login, logout, perfil, grupos `Administrador` y `Vendedor`, autorización por rol. | Base funcional |
-| `catalogo` | Categorías, productos, presentaciones y precios. | Modelo mínimo `Producto` y admin; CRUD visual pendiente |
-| `inventario` | Existencias, lotes y movimientos de entrada, salida y ajuste. | Solo estructura y ruta |
-| `compras` | Proveedores, compras, detalle y recepción de mercadería. | Solo estructura y ruta |
+| `catalogo` | Categorías, laboratorios, formas farmacéuticas, presentaciones, productos y precios. | Modelos y admin implementados; CRUD visual pendiente |
+| `inventario` | Existencias, lotes y movimientos de entrada, salida y ajuste. | Modelos `Lote` y `MovimientoInventario`; servicios y vistas pendientes |
+| `compras` | Proveedores, compras, detalle y recepción de mercadería. | Modelos `Proveedor`, `Compra` y `DetalleCompra`; vistas pendientes |
 | `clientes` | Datos de clientes e historial comercial. | Registro, consulta e historial implementados |
 | `ventas` | Ventas, detalles, cálculo de totales, cambio y ticket. | Registro, consulta y ticket implementados |
 | `reportes` | Consultas e informes de solo lectura. No tendrá modelos propios. | Solo estructura y ruta |
@@ -62,7 +62,7 @@ sequenceDiagram
 - Los grupos base se crean mediante la migración `accounts.0001_create_default_groups`.
 - `LoginRequiredMixin` protege todas las vistas de gestión. Las vistas de clientes, catálogo mínimo y ventas usan este mixin en esta etapa.
 - `RoleRequiredMixin` permite restringir una vista a grupos concretos. Los superusuarios siempre tienen acceso.
-- Los permisos por modelo se asignarán a los grupos cuando existan los modelos de cada app. Los modelos `Cliente`, `Producto`, `Venta` y `DetalleVenta` ya existen, pero sus permisos por rol todavía no se aplican en las vistas del sistema.
+- Los permisos por modelo se asignarán a los grupos cuando existan los modelos de cada app. Los modelos de catálogo, compras, inventario, clientes y ventas ya existen, pero sus permisos por rol todavía no se aplican en las vistas del sistema.
 - El login y el logout usan las vistas de Django y protección CSRF. El logout solo acepta POST.
 
 ## 4. Límites entre módulos
@@ -134,13 +134,15 @@ Reglas de esta etapa:
 
 La base inicial es SQLite (`db.sqlite3`), ignorada por Git. SQLite es suficiente para el desarrollo local y una única instancia, pero tiene limitaciones de concurrencia. Si el sistema se despliega para varios usuarios simultáneos, se evaluará PostgreSQL antes de la puesta en producción.
 
-Las migraciones actuales son `clientes.0001_initial` (tabla `Cliente` con sus restricciones de documento), `catalogo.0001_initial` (modelo mínimo `Producto`) y `ventas.0001_initial` (`Venta` y `DetalleVenta`). Las siguientes etapas deben crear los modelos pendientes en este orden sugerido para respetar dependencias:
+El esquema ya cubre el modelo relacional completo: `clientes` (Cliente), `catalogo` (Categoria, Laboratorio, FormaFarmaceutica, Presentacion y Producto), `ventas` (Venta y DetalleVenta), `inventario` (Lote y MovimientoInventario), `compras` (Proveedor, Compra y DetalleCompra) y `core` (ConfiguracionSistema). El detalle de tablas, claves y restricciones está en `docs/modelo-er-relacional.pdf`.
 
-1. `catalogo`: completar `Categoria`, presentaciones y el CRUD visual; `Producto` ya existe en su versión mínima.
-2. `inventario`: existencias y movimientos, referenciando `catalogo.Producto`.
-3. `compras`: `Proveedor`, `Compra`, `DetalleCompra`.
-4. `ventas`: integrar la salida de inventario en el servicio transaccional; `Venta` y `DetalleVenta` ya existen.
-5. `reportes`: consultas sin modelos.
+Quedan pendientes las capas de servicio y las vistas:
+
+1. `inventario`: servicios transaccionales de entrada, salida y ajuste con lógica FEFO.
+2. `compras`: vistas de proveedores y recepción de compras que generen movimientos de entrada.
+3. `ventas`: integrar la salida de inventario en `registrar_venta`.
+4. `catalogo`: CRUD visual de productos y catálogos auxiliares.
+5. `reportes`: consultas de solo lectura sobre los modelos existentes.
 
 ## 8. Roadmap sugerido
 

@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+
+{% block title %}Reporte de Compras | Farmacia Lufar{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <p class="eyebrow">
+      <a href="{% url 'reportes:index' %}">Reportes</a> / Compras
+    </p>
+    <h1>Reporte de Compras</h1>
+    <p class="page-header__text">
+      Historial de órdenes de compra y análisis de abastecimiento.
+    </p>
+  </div>
+</div>
+
+<section class="card">
+  <div class="placeholder-module">
+    <div class="placeholder-module__icon placeholder-module__icon--amber">
+      <svg viewBox="0 0 24 24" width="36" height="36" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/>
+        <line x1="3" y1="6" x2="21" y2="6"/>
+        <path d="M16 10a4 4 0 01-8 0"/>
+      </svg>
+    </div>
+    <div class="placeholder-module__body">
+      <h2>Módulo de Compras pendiente</h2>
+      <p>
+        El reporte de compras estará disponible cuando se implemente el módulo de
+        compras con sus modelos de <strong>Proveedor</strong>, <strong>Compra</strong> y
+        <strong>DetalleCompra</strong>.
+      </p>
+      <p class="text-muted">
+        Una vez activado, podrás consultar: órdenes por proveedor, compras por
+        periodo, productos más comprados y monto total de abastecimiento.
+      </p>
+      <div class="placeholder-module__scope">
+        <h3>Alcance planeado</h3>
+        <ul>
+          <li>Historial de órdenes de compra por fecha y proveedor</li>
+          <li>Monto total de compras por periodo</li>
+          <li>Productos con mayor volumen de compra</li>
+          <li>Balance compras vs. ventas por producto</li>
+          <li>Proveedores con mayor movimiento</li>
+        </ul>
+      </div>
+      <a class="btn btn--secondary" href="{% url 'reportes:index' %}">
+        ← Volver a Reportes
+      </a>
+    </div>
+  </div>
+</section>
+{% endblock %}

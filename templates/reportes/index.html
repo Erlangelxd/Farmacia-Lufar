@@ -1,0 +1,97 @@
+{% extends "base.html" %}
+
+{% block title %}Reportes | Farmacia Lufar{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <p class="eyebrow">Gestión</p>
+    <h1>Reportes</h1>
+    <p class="page-header__text">
+      Consulta el desempeño de ventas, el estado del inventario y el historial
+      de compras de la farmacia.
+    </p>
+  </div>
+</div>
+
+<!-- Resumen rápido -->
+<div class="stat-grid">
+  <article class="stat-card stat-card--green">
+    <span class="stat-card__label">Ventas hoy</span>
+    <p class="stat-card__value">{{ ventas_hoy }}</p>
+    <p class="stat-card__detail">Operaciones del día</p>
+  </article>
+  <article class="stat-card stat-card--teal">
+    <span class="stat-card__label">Ingresos hoy</span>
+    <p class="stat-card__value">Bs {{ ingresos_hoy|stringformat:"0.2f" }}</p>
+    <p class="stat-card__detail">Cobrado en efectivo</p>
+  </article>
+  <article class="stat-card stat-card--amber">
+    <span class="stat-card__label">Ventas del mes</span>
+    <p class="stat-card__value">{{ total_ventas_mes }}</p>
+    <p class="stat-card__detail">Mes en curso</p>
+  </article>
+  <article class="stat-card stat-card--blue">
+    <span class="stat-card__label">Ingresos del mes</span>
+    <p class="stat-card__value">Bs {{ ingresos_mes|stringformat:"0.2f" }}</p>
+    <p class="stat-card__detail">Mes en curso</p>
+  </article>
+</div>
+
+<!-- Accesos a reportes -->
+<div class="report-cards">
+
+  <a class="report-card" href="{% url 'reportes:ventas' %}">
+    <div class="report-card__icon report-card__icon--green">
+      <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+      </svg>
+    </div>
+    <div class="report-card__body">
+      <h2 class="report-card__title">Reporte de Ventas</h2>
+      <p class="report-card__desc">
+        Analiza las ventas por periodo, vendedor y productos más demandados.
+        Incluye gráfico de tendencia diaria y ticket promedio.
+      </p>
+      <span class="report-card__link">Ver reporte →</span>
+    </div>
+  </a>
+
+  <a class="report-card" href="{% url 'reportes:compras' %}">
+    <div class="report-card__icon report-card__icon--amber">
+      <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/>
+        <line x1="3" y1="6" x2="21" y2="6"/>
+        <path d="M16 10a4 4 0 01-8 0"/>
+      </svg>
+    </div>
+    <div class="report-card__body">
+      <h2 class="report-card__title">Reporte de Compras</h2>
+      <p class="report-card__desc">
+        Historial de órdenes de compra, proveedores y abastecimiento.
+        Disponible cuando se active el módulo de compras.
+      </p>
+      <span class="report-card__link">Ver reporte →</span>
+    </div>
+  </a>
+
+  <a class="report-card" href="{% url 'reportes:inventario' %}">
+    <div class="report-card__icon report-card__icon--teal">
+      <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <rect x="2" y="3" width="20" height="14" rx="2"/>
+        <line x1="8" y1="21" x2="16" y2="21"/>
+        <line x1="12" y1="17" x2="12" y2="21"/>
+      </svg>
+    </div>
+    <div class="report-card__body">
+      <h2 class="report-card__title">Reporte de Inventario</h2>
+      <p class="report-card__desc">
+        Estado actual del catálogo: productos activos, precios y los artículos
+        más vendidos de todos los tiempos.
+      </p>
+      <span class="report-card__link">Ver reporte →</span>
+    </div>
+  </a>
+
+</div>
+{% endblock %}

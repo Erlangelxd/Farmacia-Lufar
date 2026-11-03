@@ -133,7 +133,9 @@ class VentaServiceTests(VentaBaseTestData):
         self.assertEqual(Venta.objects.count(), 0)
 
     def test_rechaza_producto_con_precio_negativo(self):
-        producto = Producto.objects.create(
+        # La base de datos impide guardar precios negativos; el servicio debe
+        # rechazarlos igualmente como defensa en profundidad.
+        producto = Producto(
             codigo="P-NEG",
             nombre="Producto con precio negativo",
             precio_venta=Decimal("-1.00"),

@@ -2369,3 +2369,274 @@ h3 {
     display: none !important;
   }
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Módulo de Reportes
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* Tarjetas de acceso en el índice de reportes */
+.report-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 1.25rem;
+  margin-bottom: 2rem;
+}
+
+.report-card {
+  display: flex;
+  gap: 1.25rem;
+  padding: 1.5rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+  color: inherit;
+  text-decoration: none;
+  transition: box-shadow 0.18s ease, border-color 0.18s ease, transform 0.18s ease;
+}
+
+.report-card:hover {
+  text-decoration: none;
+  border-color: var(--brand-soft);
+  box-shadow: var(--shadow);
+  transform: translateY(-2px);
+}
+
+.report-card__icon {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 56px;
+  height: 56px;
+  border-radius: var(--radius-sm);
+}
+
+.report-card__icon--green {
+  background: var(--success-soft);
+  color: var(--success);
+}
+
+.report-card__icon--amber {
+  background: var(--warning-soft);
+  color: var(--warning);
+}
+
+.report-card__icon--teal {
+  background: var(--brand-soft);
+  color: var(--brand);
+}
+
+.report-card__body {
+  flex: 1;
+  min-width: 0;
+}
+
+.report-card__title {
+  margin: 0 0 0.35rem;
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.report-card__desc {
+  margin: 0 0 0.75rem;
+  font-size: 0.875rem;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+.report-card__link {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--brand);
+}
+
+/* Gráfico de barras canvas */
+.chart-wrap {
+  position: relative;
+  width: 100%;
+  height: 220px;
+  margin-top: 0.5rem;
+}
+
+.chart-canvas {
+  width: 100% !important;
+  height: 100% !important;
+}
+
+/* Grilla de 2 columnas para reportes */
+.report-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.25rem;
+  margin-bottom: 1.25rem;
+}
+
+/* Indicador de inventario */
+.inv-gauge {
+  padding: 1.25rem 0 0.5rem;
+}
+
+.inv-gauge__bar {
+  display: flex;
+  height: 10px;
+  border-radius: 99px;
+  overflow: hidden;
+  background: var(--line);
+  gap: 2px;
+  margin-bottom: 0.75rem;
+}
+
+.inv-gauge__fill {
+  height: 100%;
+  border-radius: 99px;
+  transition: width 0.4s ease;
+}
+
+.inv-gauge__fill--green {
+  background: var(--success);
+}
+
+.inv-gauge__fill--muted {
+  background: var(--line-strong);
+}
+
+.inv-gauge__legend {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.inv-gauge__dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.inv-gauge__dot--green {
+  background: var(--success);
+}
+
+.inv-gauge__dot--muted {
+  background: var(--line-strong);
+}
+
+/* Rango de precios */
+.inv-price-range {
+  display: flex;
+  gap: 0;
+  margin-top: 1.25rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+
+.inv-price-range__item {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 0.85rem;
+  border-right: 1px solid var(--line);
+  text-align: center;
+}
+
+.inv-price-range__item:last-child {
+  border-right: 0;
+}
+
+.inv-price-range__label {
+  font-size: 0.75rem;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-bottom: 0.25rem;
+}
+
+/* Placeholder del módulo de compras */
+.placeholder-module {
+  display: flex;
+  gap: 1.75rem;
+  padding: 2rem;
+}
+
+.placeholder-module__icon {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 72px;
+  height: 72px;
+  border-radius: var(--radius);
+}
+
+.placeholder-module__icon--amber {
+  background: var(--warning-soft);
+  color: var(--warning);
+}
+
+.placeholder-module__body h2 {
+  font-size: 1.2rem;
+  margin-bottom: 0.5rem;
+}
+
+.placeholder-module__scope {
+  margin: 1.25rem 0;
+  padding: 1rem 1.25rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--surface-soft);
+}
+
+.placeholder-module__scope h3 {
+  margin-bottom: 0.5rem;
+  font-size: 0.875rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+}
+
+.placeholder-module__scope ul {
+  margin: 0;
+  padding-left: 1.25rem;
+}
+
+.placeholder-module__scope li {
+  font-size: 0.9rem;
+  color: var(--ink-soft);
+  margin-bottom: 0.25rem;
+}
+
+/* Variante badge--neutral para productos inactivos */
+.badge--neutral {
+  background: var(--line);
+  color: var(--muted);
+}
+
+/* Variante badge--blue para stat cards */
+.stat-card--blue {
+  border-top-color: var(--info);
+}
+
+/* Responsive: report-grid a una columna */
+@media (max-width: 900px) {
+  .report-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .placeholder-module {
+    flex-direction: column;
+  }
+}
+
+@media (max-width: 640px) {
+  .report-cards {
+    grid-template-columns: 1fr;
+  }
+}
+

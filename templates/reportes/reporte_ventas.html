@@ -1,0 +1,315 @@
+{% extends "base.html" %}
+
+{% block title %}Reporte de Ventas | Farmacia Lufar{% endblock %}
+
+{% block extra_js %}
+<script>
+  document.addEventListener("DOMContentLoaded", function () {
+    const labels = {{ dias_labels|safe }};
+    const ingresos = {{ dias_ingresos|safe }};
+    const cantidades = {{ dias_cantidad|safe }};
+
+    if (!labels.length) return;
+
+    // ── Gráfico de ingresos por día ──────────────────────────────────────────
+    const canvas = document.getElementById("grafico-ingresos");
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    const W = canvas.offsetWidth;
+    const H = canvas.offsetHeight;
+    canvas.width = W;
+    canvas.height = H;
+
+    const pad = { top: 20, right: 16, bottom: 40, left: 60 };
+    const chartW = W - pad.left - pad.right;
+    const chartH = H - pad.top - pad.bottom;
+
+    const maxVal = Math.max(...ingresos, 1);
+    const barW = Math.max(4, Math.min(40, chartW / labels.length - 4));
+
+    // Fondo de líneas horizontales
+    ctx.strokeStyle = "rgba(219,230,224,0.6)";
+    ctx.lineWidth = 1;
+    const steps = 4;
+    for (let i = 0; i <= steps; i++) {
+      const y = pad.top + chartH - (i / steps) * chartH;
+      ctx.beginPath();
+      ctx.moveTo(pad.left, y);
+      ctx.lineTo(pad.left + chartW, y);
+      ctx.stroke();
+      ctx.fillStyle = "#657a70";
+      ctx.font = "11px system-ui";
+      ctx.textAlign = "right";
+      ctx.fillText("Bs " + ((maxVal * i) / steps).toFixed(0), pad.left - 6, y + 4);
+    }
+
+    // Barras
+    const gradient = ctx.createLinearGradient(0, pad.top, 0, pad.top + chartH);
+    gradient.addColorStop(0, "#0f5c4a");
+    gradient.addColorStop(1, "#dcefe7");
+
+    labels.forEach(function (lbl, i) {
+      const x = pad.left + (i / labels.length) * chartW + chartW / labels.length / 2 - barW / 2;
+      const barH = (ingresos[i] / maxVal) * chartH;
+      const y = pad.top + chartH - barH;
+
+      ctx.fillStyle = gradient;
+      ctx.beginPath();
+      ctx.roundRect(x, y, barW, barH, [3, 3, 0, 0]);
+      ctx.fill();
+
+      // Etiqueta de fecha (cada N barras si hay muchas)
+      if (labels.length <= 14 || i % Math.ceil(labels.length / 7) === 0) {
+        ctx.fillStyle = "#657a70";
+        ctx.font = "10px system-ui";
+        ctx.textAlign = "center";
+        const partes = lbl.split("-");
+        ctx.fillText(partes[2] + "/" + partes[1], x + barW / 2, pad.top + chartH + 18);
+      }
+    });
+  });
+</script>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <p class="eyebrow">
+      <a href="{% url 'reportes:index' %}">Reportes</a> / Ventas
+    </p>
+    <h1>Reporte de Ventas</h1>
+    <p class="page-header__text">
+      Periodo:
+      <strong>{{ fecha_inicio|date:"d/m/Y" }}</strong>
+      {% if fecha_inicio != fecha_fin %}
+        → <strong>{{ fecha_fin|date:"d/m/Y" }}</strong>
+      {% endif %}
+    </p>
+  </div>
+</div>
+
+<!-- Filtros -->
+<section class="card">
+  <form class="filter-form" method="get" action="{% url 'reportes:ventas' %}">
+    <div class="form-field">
+      <label for="periodo">Periodo</label>
+      <select class="form-control" id="periodo" name="periodo">
+        {% for val, lbl in periodos %}
+          <option value="{{ val }}" {% if val == periodo_actual %}selected{% endif %}>{{ lbl }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="form-field">
+      <label for="vendedor">Vendedor</label>
+      <select class="form-control" id="vendedor" name="vendedor">
+        <option value="">Todos</option>
+        {% for v in vendedores %}
+          <option value="{{ v.pk }}" {% if vendedor_id == v.pk|stringformat:"s" %}selected{% endif %}>
+            {{ v.get_full_name|default:v.username }}
+          </option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="filter-form__actions">
+      <button class="btn btn--primary" type="submit">Aplicar</button>
+      <a class="btn btn--secondary" href="{% url 'reportes:ventas' %}">Limpiar</a>
+    </div>
+  </form>
+</section>
+
+<!-- KPIs del periodo -->
+<div class="stat-grid stat-grid--compact">
+  <article class="stat-card stat-card--green">
+    <span class="stat-card__label">Ventas realizadas</span>
+    <p class="stat-card__value">{{ total_ventas }}</p>
+    <p class="stat-card__detail">En el periodo</p>
+  </article>
+  <article class="stat-card stat-card--teal">
+    <span class="stat-card__label">Ingresos totales</span>
+    <p class="stat-card__value">Bs {{ ingresos_total|stringformat:"0.2f" }}</p>
+    <p class="stat-card__detail">Suma de todas las ventas</p>
+  </article>
+  <article class="stat-card stat-card--amber">
+    <span class="stat-card__label">Ticket promedio</span>
+    <p class="stat-card__value">Bs {{ ticket_promedio|stringformat:"0.2f" }}</p>
+    <p class="stat-card__detail">Por venta</p>
+  </article>
+  <article class="stat-card stat-card--blue">
+    <span class="stat-card__label">Unidades vendidas</span>
+    <p class="stat-card__value">{{ unidades_total }}</p>
+    <p class="stat-card__detail">Total de productos</p>
+  </article>
+</div>
+
+<!-- Gráfico de ingresos por día -->
+{% if ventas_por_dia %}
+<section class="card">
+  <div class="card__header">
+    <div>
+      <p class="eyebrow">Tendencia</p>
+      <h2>Ingresos por día</h2>
+    </div>
+  </div>
+  <div class="chart-wrap">
+    <canvas id="grafico-ingresos" class="chart-canvas"></canvas>
+  </div>
+</section>
+{% endif %}
+
+<div class="report-grid">
+
+  <!-- Productos más vendidos -->
+  <section class="card">
+    <div class="card__header">
+      <div>
+        <p class="eyebrow">Ranking</p>
+        <h2>Productos más vendidos</h2>
+      </div>
+    </div>
+    {% if productos_top %}
+      <div class="table-wrap">
+        <table class="table">
+          <thead>
+            <tr>
+              <th scope="col">#</th>
+              <th scope="col">Producto</th>
+              <th scope="col">Unidades</th>
+              <th scope="col">Ingresos</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for p in productos_top %}
+              <tr>
+                <td class="text-muted">{{ forloop.counter }}</td>
+                <td>
+                  <span class="table__primary">{{ p.nombre_producto }}</span>
+                  <span class="table__secondary">{{ p.codigo_producto }}</span>
+                </td>
+                <td><strong>{{ p.unidades }}</strong></td>
+                <td>Bs {{ p.ingresos|stringformat:"0.2f" }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <div class="empty-state">
+        <span class="empty-state__icon" aria-hidden="true">RP</span>
+        <h3>Sin datos en el periodo</h3>
+        <p>No hay ventas registradas para el rango seleccionado.</p>
+      </div>
+    {% endif %}
+  </section>
+
+  <!-- Ventas por vendedor -->
+  <section class="card">
+    <div class="card__header">
+      <div>
+        <p class="eyebrow">Equipo</p>
+        <h2>Desempeño por vendedor</h2>
+      </div>
+    </div>
+    {% if ventas_por_vendedor %}
+      <div class="table-wrap">
+        <table class="table">
+          <thead>
+            <tr>
+              <th scope="col">Vendedor</th>
+              <th scope="col">Ventas</th>
+              <th scope="col">Ingresos</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for v in ventas_por_vendedor %}
+              <tr>
+                <td>
+                  {% with nombre=v.vendedor__first_name %}
+                    {% if nombre %}
+                      <span class="table__primary">
+                        {{ nombre }} {{ v.vendedor__last_name }}
+                      </span>
+                      <span class="table__secondary">{{ v.vendedor__username }}</span>
+                    {% else %}
+                      <span class="table__primary">{{ v.vendedor__username }}</span>
+                    {% endif %}
+                  {% endwith %}
+                </td>
+                <td>{{ v.cantidad }}</td>
+                <td><strong>Bs {{ v.ingresos|stringformat:"0.2f" }}</strong></td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <div class="empty-state">
+        <span class="empty-state__icon" aria-hidden="true">VD</span>
+        <h3>Sin datos</h3>
+        <p>No hay vendedores con ventas en este periodo.</p>
+      </div>
+    {% endif %}
+  </section>
+
+</div>
+
+<!-- Últimas 50 ventas del periodo -->
+<section class="card">
+  <div class="card__header">
+    <div>
+      <p class="eyebrow">Detalle</p>
+      <h2>Ventas del periodo</h2>
+      <p class="card__hint">
+        {% if total_ventas %}
+          Mostrando hasta 50 de {{ total_ventas }} venta{{ total_ventas|pluralize }}
+        {% else %}
+          Sin ventas en el periodo
+        {% endif %}
+      </p>
+    </div>
+    <a class="btn btn--secondary btn--small" href="{% url 'ventas:index' %}">
+      Ver historial completo
+    </a>
+  </div>
+
+  {% if ventas_lista %}
+    <div class="table-wrap">
+      <table class="table">
+        <thead>
+          <tr>
+            <th scope="col">N°</th>
+            <th scope="col">Fecha</th>
+            <th scope="col">Cliente</th>
+            <th scope="col">Vendedor</th>
+            <th scope="col">Total</th>
+            <th scope="col"><span class="sr-only">Acciones</span></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for venta in ventas_lista %}
+            <tr>
+              <td>
+                <a class="table__primary" href="{% url 'ventas:detalle' venta.pk %}">
+                  {{ venta.numero }}
+                </a>
+              </td>
+              <td>{{ venta.creado_en|date:"d/m/Y H:i" }}</td>
+              <td>{{ venta.cliente.nombre|default:"Consumidor final" }}</td>
+              <td>{{ venta.vendedor.get_full_name|default:venta.vendedor.username }}</td>
+              <td><strong>Bs {{ venta.total|stringformat:"0.2f" }}</strong></td>
+              <td class="table__actions">
+                <a class="btn btn--secondary btn--small" href="{% url 'ventas:detalle' venta.pk %}">Ver</a>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <div class="empty-state">
+      <span class="empty-state__icon" aria-hidden="true">VT</span>
+      <h3>Sin ventas en el periodo</h3>
+      <p>Prueba con otro periodo o limpia los filtros.</p>
+    </div>
+  {% endif %}
+</section>
+{% endblock %}

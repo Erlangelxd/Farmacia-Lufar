@@ -59,9 +59,9 @@
         {% if current == 'clientes:index' or current == 'clientes:crear' or current == 'clientes:detalle' %}aria-current="page"{% endif %}
       >Clientes</a>
       <a
-        class="nav__link{% if current == 'reportes:index' %} is-active{% endif %}"
+        class="nav__link{% if current == 'reportes:index' or current == 'reportes:ventas' or current == 'reportes:compras' or current == 'reportes:inventario' %} is-active{% endif %}"
         href="{% url 'reportes:index' %}"
-        {% if current == 'reportes:index' %}aria-current="page"{% endif %}
+        {% if current == 'reportes:index' or current == 'reportes:ventas' or current == 'reportes:compras' or current == 'reportes:inventario' %}aria-current="page"{% endif %}
       >Reportes</a>
 
       <p class="nav__section">Sistema</p>

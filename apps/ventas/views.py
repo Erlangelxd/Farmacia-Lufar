@@ -18,7 +18,6 @@ from .forms import DetalleVentaFormSet, VentaForm
 from .models import Venta
 from .services import registrar_venta
 
-
 class VentaListView(LoginRequiredMixin, ListView):
     """Listado de ventas con búsqueda, filtro por cliente y paginación."""
 

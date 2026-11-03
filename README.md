@@ -7,8 +7,9 @@ Python, Django, SQLite y plantillas renderizadas en el servidor.
 > **Estado actual:** estructura base funcional con autenticación, grupos,
 > navegación, dashboard provisional, módulo de clientes con registro y consulta,
 > y módulo de ventas con catálogo mínimo de productos, cálculo de totales y
-> ticket imprimible. **No incluye todavía CRUD visual de catálogo, compras,
-> movimientos de inventario ni edición o anulación de ventas.**
+> ticket imprimible y esquema de datos completo. **No incluye todavía CRUD
+> visual de catálogo, compras, movimientos de inventario ni edición o
+> anulación de ventas.**
 
 ## 1. Objetivo y alcance inicial
 
@@ -29,8 +30,9 @@ autenticación, la navegación ni la organización del proyecto.
 - Dashboard con indicadores de ejemplo marcados como **provisionales**.
 - Módulo de clientes: registro, listado con búsqueda y filtro por estado,
   ficha de consulta, historial de ventas y administración desde Django Admin.
-- Catálogo mínimo: modelo `Producto` con código, nombre, precio de venta y
-  estado, administrado desde Django Admin.
+- Catálogo administrado desde Django Admin: `Categoria`, `Laboratorio`,
+  `FormaFarmaceutica`, `Presentacion` y `Producto` (código, nombre, precio de
+  venta, stock mínimo y estado).
 - Módulo de ventas: registro con líneas de detalle, cálculo de total y cambio,
   listado con búsqueda y filtro por cliente, ficha de consulta y ticket
   imprimible de 80 mm.
@@ -63,9 +65,9 @@ API REST separada, React ni servicios en la nube.
 |---|---|---|
 | `core` | Dashboard, mixins, filtros y utilidades compartidas. | Base implementada |
 | `accounts` | Login, logout, perfil, usuarios, grupos y autorización por rol. | Base funcional |
-| `catalogo` | Productos, categorías, presentaciones y precios. | Modelo mínimo `Producto` y admin; CRUD visual pendiente |
-| `inventario` | Existencias, lotes y movimientos de entrada, salida y ajuste. | Ruta y estructura |
-| `compras` | Proveedores, compras, detalle y recepción de mercadería. | Ruta y estructura |
+| `catalogo` | Productos, categorías, laboratorios, formas farmacéuticas, presentaciones y precios. | Modelos y admin implementados; CRUD visual pendiente |
+| `inventario` | Existencias, lotes y movimientos de entrada, salida y ajuste. | Modelos `Lote` y `MovimientoInventario`; servicios y vistas pendientes |
+| `compras` | Proveedores, compras, detalle y recepción de mercadería. | Modelos `Proveedor`, `Compra` y `DetalleCompra`; vistas pendientes |
 | `clientes` | Datos de clientes e historial comercial. | Registro, consulta e historial implementados |
 | `ventas` | Ventas, detalles, cálculo de totales, cambio y ticket. | Registro, consulta y ticket implementados |
 | `reportes` | Consultas e informes de solo lectura. | Ruta y estructura |
@@ -86,9 +88,9 @@ Decisiones importantes:
   número es único por tipo.
 - **Inventario será el único dueño de las existencias.** Compras y ventas
   deberán registrar sus movimientos mediante servicios transaccionales.
-- **Ventas usa un catálogo mínimo.** El modelo `Producto` tiene código, nombre,
-  precio de venta y estado. Se administra desde Django Admin; el CRUD visual
-  del catálogo se implementará después.
+- **El catálogo se administra desde Django Admin.** `Producto` pertenece a una
+  categoría y puede referenciar laboratorio, forma farmacéutica y presentación;
+  el CRUD visual del catálogo se implementará después.
 - **Las ventas son inmutables en esta etapa.** No se editan, eliminan ni anulan
   desde la interfaz. El admin de ventas es de solo lectura para proteger los
   registros financieros.

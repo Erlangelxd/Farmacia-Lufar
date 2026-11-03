@@ -137,7 +137,6 @@ class InitialStructureTests(TestCase):
             ("catalogo:index", "Catálogo"),
             ("inventario:index", "Inventario"),
             ("compras:index", "Compras"),
-            ("reportes:index", "Reportes"),
         )
         for name, title in module_routes:
             with self.subTest(route=name):
@@ -145,6 +144,11 @@ class InitialStructureTests(TestCase):
                 self.assertEqual(module_response.status_code, 200)
                 self.assertTemplateUsed(module_response, "core/placeholder.html")
                 self.assertContains(module_response, title)
+
+        reportes_response = self.client.get(reverse("reportes:index"))
+        self.assertEqual(reportes_response.status_code, 200)
+        self.assertTemplateUsed(reportes_response, "reportes/index.html")
+        self.assertContains(reportes_response, "Reportes")
 
         clientes_response = self.client.get(reverse("clientes:index"))
         self.assertEqual(clientes_response.status_code, 200)

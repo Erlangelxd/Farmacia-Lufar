@@ -6,6 +6,15 @@ Todos los cambios relevantes del proyecto se documentan en este archivo.
 
 ### Agregado
 
+- Esquema completo de base de datos en SQLite (sin `codigo_barras` en
+  `Producto`): catálogos de categoría, laboratorio, forma farmacéutica y
+  presentación; proveedores, compras y detalle de compra; lotes y movimientos
+  de inventario; y configuración del sistema. Incluye migraciones, índices,
+  restricciones `CHECK` y registro en Django Admin.
+- Migración de datos `catalogo.0003_categoria_general` que crea la categoría
+  `General` para los productos existentes.
+- Documento `docs/modelo-er-relacional.tex` y su PDF con el modelo
+  entidad-relación y el modelo relacional del sistema.
 - Módulo de clientes con modelo `Cliente`, migración inicial, formulario de
   registro, listado con búsqueda y filtro por estado, ficha de consulta y
   registro en Django Admin.
