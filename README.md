@@ -4,12 +4,12 @@ Sistema web local para centralizar productos, inventario, compras, clientes,
 proveedores, ventas, usuarios y reportes de Farmacia Lufar. Está construido con
 Python, Django, SQLite y plantillas renderizadas en el servidor.
 
-> **Estado actual:** estructura base funcional con autenticación, grupos,
-> navegación, dashboard provisional, módulo de clientes con registro y consulta,
-> y módulo de ventas con catálogo mínimo de productos, cálculo de totales y
-> ticket imprimible y esquema de datos completo. **No incluye todavía CRUD
-> visual de catálogo, compras, movimientos de inventario ni edición o
-> anulación de ventas.**
+> **Estado actual:** estructura base funcional con autenticación, gestión de
+> usuarios y roles, navegación, dashboard provisional, módulo de clientes con
+> registro y consulta, módulo de ventas con catálogo mínimo de productos,
+> cálculo de totales y ticket imprimible, reportes de solo lectura y esquema de
+> datos completo. **No incluye todavía CRUD visual de catálogo, compras,
+> movimientos de inventario ni edición o anulación de ventas.**
 
 ## 1. Objetivo y alcance inicial
 
@@ -24,7 +24,11 @@ autenticación, la navegación ni la organización del proyecto.
   `clientes`, `ventas` y `reportes`.
 - Login y logout con el sistema de autenticación de Django.
 - Grupos base `Administrador` y `Vendedor` creados por migración.
-- Restricción de vistas mediante autenticación y roles.
+- Permisos por modelo sincronizados para cada grupo después de migrar.
+- Gestión visual de usuarios: alta, edición, asignación de rol, activación y
+  desactivación.
+- Restricción de vistas mediante autenticación y roles, con `403` para los
+  módulos no permitidos.
 - Interfaz administrativa responsive con plantilla base, menú, encabezado,
   mensajes y área de contenido.
 - Dashboard con indicadores de ejemplo marcados como **provisionales**.
@@ -36,8 +40,10 @@ autenticación, la navegación ni la organización del proyecto.
 - Módulo de ventas: registro con líneas de detalle, cálculo de total y cambio,
   listado con búsqueda y filtro por cliente, ficha de consulta y ticket
   imprimible de 80 mm.
-- Rutas y páginas de alcance para catálogo visual, inventario, compras y
-  reportes.
+- Módulo de reportes de solo lectura: ventas por periodo y vendedor, compras
+  por proveedor y estado, e inventario con stock por lote, valor del
+  inventario, alertas de stock bajo y vencimientos.
+- Rutas y páginas de alcance para catálogo visual, inventario y compras.
 - Estilos y JavaScript locales, sin CDN.
 - Pruebas transversales y pruebas propias de clientes, catálogo y ventas.
 - Documentación de arquitectura y decisiones en `docs/`.
@@ -50,7 +56,6 @@ autenticación, la navegación ni la organización del proyecto.
   ficha.
 - Movimientos reales de inventario y descuento de stock al vender.
 - Facturación fiscal, impuestos, descuentos y reglas comerciales avanzadas.
-- Reportes con datos reales.
 - Recuperación de contraseña por correo.
 - Despliegue en producción, HTTPS y backups automáticos.
 - Aplicación móvil o API REST independiente.
@@ -64,13 +69,13 @@ API REST separada, React ni servicios en la nube.
 | Aplicación | Responsabilidad | Estado |
 |---|---|---|
 | `core` | Dashboard, mixins, filtros y utilidades compartidas. | Base implementada |
-| `accounts` | Login, logout, perfil, usuarios, grupos y autorización por rol. | Base funcional |
+| `accounts` | Login, logout, perfil, usuarios, roles, permisos por modelo y autorización por rol. | Implementado |
 | `catalogo` | Productos, categorías, laboratorios, formas farmacéuticas, presentaciones y precios. | Modelos y admin implementados; CRUD visual pendiente |
 | `inventario` | Existencias, lotes y movimientos de entrada, salida y ajuste. | Modelos `Lote` y `MovimientoInventario`; servicios y vistas pendientes |
 | `compras` | Proveedores, compras, detalle y recepción de mercadería. | Modelos `Proveedor`, `Compra` y `DetalleCompra`; vistas pendientes |
 | `clientes` | Datos de clientes e historial comercial. | Registro, consulta e historial implementados |
 | `ventas` | Ventas, detalles, cálculo de totales, cambio y ticket. | Registro, consulta y ticket implementados |
-| `reportes` | Consultas e informes de solo lectura. | Ruta y estructura |
+| `reportes` | Consultas e informes de solo lectura. | Reportes de ventas, compras e inventario implementados |
 
 Decisiones importantes:
 
@@ -78,11 +83,17 @@ Decisiones importantes:
   define una novena app. Se mantiene la estructura de ocho aplicaciones.
 - **El usuario es el `User` integrado de Django.** No se creó un modelo de
   usuario personalizado en esta etapa.
-- **Los permisos por modelo se asignarán después.** Por ahora los grupos
-  identifican el rol y `RoleRequiredMixin` restringe la vista de usuarios al
-  grupo `Administrador`. Las vistas de clientes y ventas usan
-  `LoginRequiredMixin` y quedarán sujetas a los permisos por modelo cuando se
-  definan.
+- **Los permisos por modelo se sincronizan automáticamente.** El módulo
+  `apps/accounts/permissions.py` es la fuente de verdad: `Administrador`
+  recibe todos los permisos de `catalogo`, `compras`, `inventario`, `clientes`
+  y `ventas`; `Vendedor` recibe solo los permisos operativos definidos en
+  `SELLER_PERMISSIONS`. La sincronización corre en `post_migrate` y también
+  puede ejecutarse con `python manage.py sync_roles`.
+- **El acceso a los módulos se controla con `RoleRequiredMixin`.** El Vendedor
+  accede a catálogo (consulta), clientes, ventas y al reporte de ventas; los
+  módulos de inventario, compras, reporte de compras, reporte de inventario y
+  administración de usuarios son exclusivos del Administrador. Los
+  superusuarios siempre tienen acceso.
 - **Clientes no guarda correo ni dirección en esta etapa.** El documento es
   opcional; si se registra, el tipo y el número deben ingresarse juntos y el
   número es único por tipo.
@@ -167,7 +178,8 @@ python manage.py migrate
 
 Esto crea `db.sqlite3` y aplica las migraciones de Django, de `accounts`, de
 `clientes`, de `catalogo` y de `ventas`. La migración
-`accounts.0001_create_default_groups` crea los grupos base de forma idempotente;
+`accounts.0001_create_default_groups` crea los grupos base de forma idempotente
+y la señal `post_migrate` les asigna los permisos por modelo;
 `clientes.0001_initial` crea la tabla de clientes; `catalogo.0001_initial` crea
 el modelo mínimo `Producto`; y `ventas.0001_initial` crea `Venta` y
 `DetalleVenta`. Puedes verificar los grupos con:
@@ -207,10 +219,19 @@ python manage.py shell -c "from django.contrib.auth import get_user_model; from 
 
 Roles disponibles:
 
-- `Administrador`: puede acceder a la vista de usuarios y grupos. En la
-  siguiente etapa recibirá los permisos administrativos por modelo.
-- `Vendedor`: usuario operativo para ventas y consultas. La vista de usuarios
-  le devuelve `403`.
+- `Administrador`: acceso completo a catálogo, inventario, compras, clientes,
+  ventas, reportes y gestión de usuarios. También recibe todos los permisos por
+  modelo de las apps de negocio.
+- `Vendedor`: acceso a catálogo (consulta), clientes, ventas y reporte de
+  ventas. Inventario, compras, reportes de compras/inventario y la gestión de
+  usuarios le devuelven `403`.
+
+La gestión visual está en `/cuentas/usuarios/`. Para sincronizar los permisos
+por modelo sin ejecutar migraciones:
+
+```bash
+python manage.py sync_roles
+```
 
 ## 8. Ejecución de las pruebas
 
@@ -220,7 +241,7 @@ python manage.py test
 python manage.py makemigrations --check --dry-run
 ```
 
-Las 104 pruebas actuales cubren:
+Las 143 pruebas actuales cubren:
 
 - Carga de las ocho aplicaciones.
 - Resolución de las rutas iniciales.
@@ -230,10 +251,18 @@ Las 104 pruebas actuales cubren:
 - Login válido e inválido.
 - Mensaje de bienvenida después del login.
 - Logout solo por POST y limpieza de sesión.
-- Acceso del Vendedor al dashboard y a los módulos.
-- Acceso del Administrador a usuarios y grupos.
-- Respuesta `403` para el Vendedor en la vista de usuarios.
-- Visibilidad del enlace de usuarios según el rol.
+- Acceso del Vendedor al dashboard, catálogo, clientes, ventas y reportes
+  permitidos.
+- Respuesta `403` del Vendedor en inventario, compras, reportes de
+  compras/inventario y gestión de usuarios.
+- Acceso del Administrador a todos los módulos y reportes.
+- Visibilidad del menú y de los enlaces según el rol.
+- Sincronización idempotente de permisos por modelo y matriz de menor
+  privilegio del Vendedor.
+- Alta y edición de usuarios, asignación de rol, contraseña opcional y
+  conservación de grupos personalizados.
+- Protección de la propia cuenta, del último administrador y de los
+  superusuarios.
 - Plantilla personalizada para páginas no encontradas (`404`).
 - Validación del modelo `Cliente`: documento opcional, coherencia tipo/número,
   unicidad y normalización de espacios.
@@ -271,7 +300,10 @@ Abre `http://127.0.0.1:8000/` en el navegador. Para detener el servidor usa
 | `/` | Dashboard; requiere sesión. |
 | `/cuentas/login/` | Inicio de sesión. |
 | `/cuentas/` | Perfil de la cuenta autenticada. |
-| `/cuentas/usuarios/` | Usuarios y grupos; solo Administrador o superusuario. |
+| `/cuentas/usuarios/` | Listado y filtros de usuarios; solo Administrador o superusuario. |
+| `/cuentas/usuarios/nuevo/` | Alta de usuario con rol y contraseña inicial. |
+| `/cuentas/usuarios/<id>/editar/` | Edición de datos, rol, estado y contraseña. |
+| `/cuentas/usuarios/<id>/estado/` | Activación o desactivación por POST. |
 | `/catalogo/` | Página inicial del catálogo; el CRUD visual está pendiente. |
 | `/inventario/` | Página inicial de inventario. |
 | `/compras/` | Página inicial de compras. |
@@ -283,6 +315,9 @@ Abre `http://127.0.0.1:8000/` en el navegador. Para detener el servidor usa
 | `/ventas/<id>/` | Ficha de consulta de una venta. |
 | `/ventas/<id>/ticket/` | Ticket imprimible de 80 mm. |
 | `/reportes/` | Página inicial de reportes. |
+| `/reportes/ventas/` | Reporte de ventas por periodo y vendedor. |
+| `/reportes/compras/` | Reporte de compras por periodo, proveedor y estado. |
+| `/reportes/inventario/` | Reporte de inventario: stock por lote y alertas. |
 | `/admin/` | Administración de Django, incluido el catálogo de productos. |
 
 Los productos que se pueden vender se cargan desde `/admin/` en
@@ -389,8 +424,12 @@ Controles ya presentes:
 - Autenticación y sesiones de Django.
 - CSRF en formularios y logout por POST.
 - Contraseñas con hashing de Django y validadores de seguridad.
-- `LoginRequiredMixin` en las vistas de gestión.
-- Autorización por grupo en la vista de usuarios.
+- `LoginRequiredMixin` en el perfil y `RoleRequiredMixin` en los módulos, con
+  `403` para los roles no autorizados.
+- Guardas para no desactivar la propia cuenta, no quitarse el rol
+  Administrador, no eliminar al último administrador activo y no permitir que
+  un administrador no superusuario edite superusuarios.
+- Contraseñas opcionales al editar, validadas con los validadores de Django.
 - Cabeceras `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff` y
   `Referrer-Policy: same-origin`.
 - `db.sqlite3`, `.env` y archivos locales excluidos de Git.
@@ -492,11 +531,13 @@ el paso a PostgreSQL si habrá varios usuarios concurrentes.
 - La zona horaria inicial es `America/La_Paz`; se puede cambiar con
   `DJANGO_TIME_ZONE` sin modificar el código.
 - Los indicadores del dashboard son ejemplos visuales, no datos reales.
-- Los grupos base todavía no tienen permisos por modelo asignados. Los modelos
-  `Cliente`, `Producto`, `Venta` y `DetalleVenta` ya existen, pero las vistas se
-  protegen por autenticación; los permisos por rol se incorporarán más adelante.
+- Los permisos por modelo de los grupos base se sincronizan automáticamente
+  tras cada migración. Un usuario sin rol no puede acceder a los módulos de
+  negocio y recibe `403`.
+- No hay eliminación de usuarios: solo activación y desactivación para
+  conservar la trazabilidad de ventas y compras.
 - No se implementó recuperación de contraseña por correo; el administrador
-  gestiona las cuentas desde Django Admin.
+  puede asignar una contraseña nueva desde la edición de la cuenta.
 - Proveedor se implementará dentro de `compras`.
 - Cliente se registra con nombre obligatorio; tipo y número de documento son
   opcionales y deben ingresarse juntos. No se guardan correo ni dirección en
@@ -520,10 +561,8 @@ el paso a PostgreSQL si habrá varios usuarios concurrentes.
 2. Implementar existencias y movimientos transaccionales en `inventario`.
 3. Integrar la salida de inventario en el servicio transaccional de ventas.
 4. Implementar `compras` y la recepción que actualiza inventario.
-5. Implementar reportes de solo lectura.
-6. Completar clientes con edición y desactivación.
-7. Asignar permisos por modelo a los grupos y ampliar las pruebas.
-8. Endurecer seguridad, backups y despliegue.
+5. Completar clientes con edición y desactivación.
+6. Endurecer seguridad, backups y despliegue.
 
 ## Documentación adicional
 

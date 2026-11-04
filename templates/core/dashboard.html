@@ -59,20 +59,22 @@
           </span>
           <span class="quick-link__arrow" aria-hidden="true">&rarr;</span>
         </a>
-        <a class="quick-link" href="{% url 'inventario:index' %}">
-          <span>
-            <strong>Inventario</strong>
-            <small>Existencias y movimientos</small>
-          </span>
-          <span class="quick-link__arrow" aria-hidden="true">&rarr;</span>
-        </a>
-        <a class="quick-link" href="{% url 'compras:index' %}">
-          <span>
-            <strong>Compras</strong>
-            <small>Proveedores y abastecimiento</small>
-          </span>
-          <span class="quick-link__arrow" aria-hidden="true">&rarr;</span>
-        </a>
+        {% if can_view_stock %}
+          <a class="quick-link" href="{% url 'inventario:index' %}">
+            <span>
+              <strong>Inventario</strong>
+              <small>Existencias y movimientos</small>
+            </span>
+            <span class="quick-link__arrow" aria-hidden="true">&rarr;</span>
+          </a>
+          <a class="quick-link" href="{% url 'compras:index' %}">
+            <span>
+              <strong>Compras</strong>
+              <small>Proveedores y abastecimiento</small>
+            </span>
+            <span class="quick-link__arrow" aria-hidden="true">&rarr;</span>
+          </a>
+        {% endif %}
         <a class="quick-link" href="{% url 'ventas:index' %}">
           <span>
             <strong>Ventas</strong>

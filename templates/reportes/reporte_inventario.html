@@ -10,37 +10,258 @@
     </p>
     <h1>Reporte de Inventario</h1>
     <p class="page-header__text">
-      Estado actual del catálogo de productos: activos, precios y los más
-      vendidos de todos los tiempos.
+      Existencias por lote, valor del inventario y alertas de stock y
+      vencimiento.
     </p>
   </div>
 </div>
 
-<!-- KPIs del catálogo -->
+<!-- KPIs del inventario -->
 <div class="stat-grid stat-grid--compact">
   <article class="stat-card stat-card--green">
     <span class="stat-card__label">Productos activos</span>
     <p class="stat-card__value">{{ total_activos }}</p>
-    <p class="stat-card__detail">Disponibles para venta</p>
+    <p class="stat-card__detail">De {{ total_productos }} en catálogo</p>
   </article>
   <article class="stat-card stat-card--teal">
-    <span class="stat-card__label">Total en catálogo</span>
-    <p class="stat-card__value">{{ total_productos }}</p>
-    <p class="stat-card__detail">Incluyendo inactivos</p>
+    <span class="stat-card__label">Unidades en stock</span>
+    <p class="stat-card__value">{{ stock_unidades|floatformat:2 }}</p>
+    <p class="stat-card__detail">Suma de {{ total_lotes }} lote{{ total_lotes|pluralize }}</p>
   </article>
-  {% if precio_stats.precio_min %}
   <article class="stat-card stat-card--amber">
-    <span class="stat-card__label">Precio mínimo</span>
-    <p class="stat-card__value">Bs {{ precio_stats.precio_min|stringformat:"0.2f" }}</p>
-    <p class="stat-card__detail">Producto más económico</p>
+    <span class="stat-card__label">Valor del inventario</span>
+    <p class="stat-card__value">Bs {{ valor_inventario|stringformat:"0.2f" }}</p>
+    <p class="stat-card__detail">A precio de venta</p>
   </article>
   <article class="stat-card stat-card--blue">
-    <span class="stat-card__label">Precio promedio</span>
-    <p class="stat-card__value">Bs {{ precio_stats.precio_avg|floatformat:2 }}</p>
-    <p class="stat-card__detail">Promedio de activos</p>
+    <span class="stat-card__label">Por vencer ({{ dias_por_vencer }} días)</span>
+    <p class="stat-card__value">{{ total_por_vencer }}</p>
+    <p class="stat-card__detail">Lote{{ total_por_vencer|pluralize }} con existencias</p>
   </article>
-  {% endif %}
 </div>
+
+<!-- Filtros del catálogo -->
+<section class="card">
+  <form class="filter-form" method="get" action="{% url 'reportes:inventario' %}">
+    <div class="form-field filter-form__search">
+      <label for="q">Buscar producto</label>
+      <input
+        class="form-control"
+        type="search"
+        id="q"
+        name="q"
+        value="{{ q }}"
+        placeholder="Nombre o código"
+      >
+    </div>
+    <div class="form-field">
+      <label for="estado">Estado</label>
+      <select class="form-control" id="estado" name="estado">
+        <option value="todos" {% if estado == "todos" %}selected{% endif %}>Todos</option>
+        <option value="activos" {% if estado == "activos" %}selected{% endif %}>Activos</option>
+        <option value="inactivos" {% if estado == "inactivos" %}selected{% endif %}>Inactivos</option>
+      </select>
+    </div>
+    <div class="form-field">
+      <label for="alerta">Alerta</label>
+      <select class="form-control" id="alerta" name="alerta">
+        <option value="todas" {% if alerta == "todas" %}selected{% endif %}>Todas</option>
+        <option value="bajo" {% if alerta == "bajo" %}selected{% endif %}>Stock bajo</option>
+        <option value="por_vencer" {% if alerta == "por_vencer" %}selected{% endif %}>Por vencer</option>
+        <option value="vencido" {% if alerta == "vencido" %}selected{% endif %}>Vencido</option>
+      </select>
+    </div>
+    <div class="filter-form__actions">
+      <button class="btn btn--primary" type="submit">Buscar</button>
+      {% if q or estado != "todos" or alerta != "todas" %}
+        <a class="btn btn--secondary" href="{% url 'reportes:inventario' %}">Limpiar</a>
+      {% endif %}
+    </div>
+  </form>
+</section>
+
+<div class="report-grid">
+
+  <!-- Productos con stock bajo -->
+  <section class="card">
+    <div class="card__header">
+      <div>
+        <p class="eyebrow">Reposición</p>
+        <h2>Productos con stock bajo</h2>
+        <p class="card__hint">
+          {{ total_stock_bajo }} producto{{ total_stock_bajo|pluralize }} bajo el mínimo
+        </p>
+      </div>
+    </div>
+    {% if productos_stock_bajo %}
+      <div class="table-wrap">
+        <table class="table">
+          <thead>
+            <tr>
+              <th scope="col">Producto</th>
+              <th scope="col">Stock</th>
+              <th scope="col">Mínimo</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for producto in productos_stock_bajo %}
+              <tr>
+                <td>
+                  <span class="table__primary">{{ producto.nombre }}</span>
+                  <span class="table__secondary">{{ producto.codigo }}</span>
+                </td>
+                <td><strong>{{ producto.stock_total|floatformat:2 }}</strong></td>
+                <td class="text-muted">{{ producto.stock_minimo }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <div class="empty-state">
+        <span class="empty-state__icon" aria-hidden="true">OK</span>
+        <h3>Sin alertas de stock</h3>
+        <p>Ningún producto activo está por debajo de su stock mínimo.</p>
+      </div>
+    {% endif %}
+  </section>
+
+  <!-- Lotes próximos a vencer -->
+  <section class="card">
+    <div class="card__header">
+      <div>
+        <p class="eyebrow">Vencimiento</p>
+        <h2>Lotes por vencer</h2>
+        <p class="card__hint">Próximos {{ dias_por_vencer }} días</p>
+      </div>
+    </div>
+    {% if lotes_por_vencer %}
+      <div class="table-wrap">
+        <table class="table">
+          <thead>
+            <tr>
+              <th scope="col">Lote</th>
+              <th scope="col">Producto</th>
+              <th scope="col">Vence</th>
+              <th scope="col">Stock</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for lote in lotes_por_vencer %}
+              <tr>
+                <td><span class="table__primary">{{ lote.codigo_lote }}</span></td>
+                <td>{{ lote.producto.nombre }}</td>
+                <td><strong>{{ lote.fecha_vencimiento|date:"d/m/Y" }}</strong></td>
+                <td>{{ lote.stock_actual|floatformat:2 }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <div class="empty-state">
+        <span class="empty-state__icon" aria-hidden="true">OK</span>
+        <h3>Sin vencimientos próximos</h3>
+        <p>No hay lotes activos con existencias que venzan en este plazo.</p>
+      </div>
+    {% endif %}
+  </section>
+
+</div>
+
+<!-- Lotes vencidos -->
+{% if total_vencidos %}
+<section class="card">
+  <div class="card__header">
+    <div>
+      <p class="eyebrow">Alerta</p>
+      <h2>Lotes vencidos con existencias</h2>
+      <p class="card__hint">{{ total_vencidos }} lote{{ total_vencidos|pluralize }} requieren revisión</p>
+    </div>
+    <span class="badge badge--warning">Revisar</span>
+  </div>
+  <div class="table-wrap">
+    <table class="table">
+      <thead>
+        <tr>
+          <th scope="col">Lote</th>
+          <th scope="col">Producto</th>
+          <th scope="col">Venció</th>
+          <th scope="col">Stock</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for lote in lotes_vencidos %}
+          <tr>
+            <td><span class="table__primary">{{ lote.codigo_lote }}</span></td>
+            <td>{{ lote.producto.nombre }}</td>
+            <td>{{ lote.fecha_vencimiento|date:"d/m/Y" }}</td>
+            <td>{{ lote.stock_actual|floatformat:2 }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endif %}
+
+<!-- Movimientos recientes -->
+<section class="card">
+  <div class="card__header">
+    <div>
+      <p class="eyebrow">Trazabilidad</p>
+      <h2>Movimientos recientes</h2>
+      <p class="card__hint">Últimos 15 movimientos de inventario</p>
+    </div>
+  </div>
+  {% if movimientos_recientes %}
+    <div class="table-wrap">
+      <table class="table">
+        <thead>
+          <tr>
+            <th scope="col">Fecha</th>
+            <th scope="col">Producto</th>
+            <th scope="col">Lote</th>
+            <th scope="col">Tipo</th>
+            <th scope="col">Cantidad</th>
+            <th scope="col">Stock resultante</th>
+            <th scope="col">Registrado por</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for movimiento in movimientos_recientes %}
+            <tr>
+              <td class="text-muted">{{ movimiento.fecha|date:"d/m/Y H:i" }}</td>
+              <td>
+                <span class="table__primary">{{ movimiento.lote.producto.nombre }}</span>
+                <span class="table__secondary">{{ movimiento.lote.producto.codigo }}</span>
+              </td>
+              <td>{{ movimiento.lote.codigo_lote }}</td>
+              <td>
+                {% if movimiento.tipo == "SALIDA" %}
+                  <span class="badge badge--neutral">{{ movimiento.get_tipo_display }}</span>
+                {% elif movimiento.tipo == "ENTRADA" or movimiento.tipo == "INICIAL" %}
+                  <span class="badge badge--success">{{ movimiento.get_tipo_display }}</span>
+                {% else %}
+                  <span class="badge badge--warning">{{ movimiento.get_tipo_display }}</span>
+                {% endif %}
+              </td>
+              <td>{{ movimiento.cantidad|floatformat:2 }}</td>
+              <td><strong>{{ movimiento.stock_resultante|floatformat:2 }}</strong></td>
+              <td class="text-muted">{{ movimiento.usuario.get_full_name|default:movimiento.usuario.username }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <div class="empty-state">
+      <span class="empty-state__icon" aria-hidden="true">MV</span>
+      <h3>Sin movimientos registrados</h3>
+      <p>Los movimientos aparecerán al registrar compras o ventas con inventario.</p>
+    </div>
+  {% endif %}
+</section>
 
 <div class="report-grid">
 
@@ -60,10 +281,8 @@
             <tr>
               <th scope="col">#</th>
               <th scope="col">Producto</th>
-              <th scope="col">Precio actual</th>
               <th scope="col">Unidades</th>
               <th scope="col">Ingresos</th>
-              <th scope="col">Ventas</th>
             </tr>
           </thead>
           <tbody>
@@ -74,10 +293,8 @@
                   <span class="table__primary">{{ p.producto__nombre }}</span>
                   <span class="table__secondary">{{ p.producto__codigo }}</span>
                 </td>
-                <td>Bs {{ p.producto__precio_venta|stringformat:"0.2f" }}</td>
                 <td><strong>{{ p.unidades_vendidas }}</strong></td>
                 <td>Bs {{ p.ingresos_generados|stringformat:"0.2f" }}</td>
-                <td>{{ p.veces_vendido }}</td>
               </tr>
             {% endfor %}
           </tbody>
@@ -92,7 +309,7 @@
     {% endif %}
   </section>
 
-  <!-- Barra de distribución activos/inactivos -->
+  <!-- Composición del catálogo -->
   <section class="card">
     <div class="card__header">
       <div>
@@ -102,20 +319,18 @@
     </div>
     <div class="inv-gauge">
       {% if total_productos %}
-        {% with pct_activos=total_activos|default:0 pct_total=total_productos %}
-          <div class="inv-gauge__bar">
-            <div
-              class="inv-gauge__fill inv-gauge__fill--green"
-              style="width: {% widthratio total_activos total_productos 100 %}%"
-              title="Activos"
-            ></div>
-            <div
-              class="inv-gauge__fill inv-gauge__fill--muted"
-              style="width: {% widthratio total_inactivos total_productos 100 %}%"
-              title="Inactivos"
-            ></div>
-          </div>
-        {% endwith %}
+        <div class="inv-gauge__bar">
+          <div
+            class="inv-gauge__fill inv-gauge__fill--green"
+            style="width: {% widthratio total_activos total_productos 100 %}%"
+            title="Activos"
+          ></div>
+          <div
+            class="inv-gauge__fill inv-gauge__fill--muted"
+            style="width: {% widthratio total_inactivos total_productos 100 %}%"
+            title="Inactivos"
+          ></div>
+        </div>
       {% endif %}
       <div class="inv-gauge__legend">
         <span class="inv-gauge__dot inv-gauge__dot--green"></span>
@@ -145,7 +360,7 @@
 
 </div>
 
-<!-- Catálogo completo con filtros -->
+<!-- Catálogo completo con existencias -->
 <section class="card">
   <div class="card__header">
     <div>
@@ -159,39 +374,10 @@
         {% endif %}
       </p>
     </div>
-    {% if q or estado != "todos" %}
+    {% if q or estado != "todos" or alerta != "todas" %}
       <span class="badge badge--soft">Filtro aplicado</span>
     {% endif %}
   </div>
-
-  <!-- Formulario de búsqueda -->
-  <form class="filter-form" method="get" action="{% url 'reportes:inventario' %}">
-    <div class="form-field filter-form__search">
-      <label for="q">Buscar producto</label>
-      <input
-        class="form-control"
-        type="search"
-        id="q"
-        name="q"
-        value="{{ q }}"
-        placeholder="Nombre o código"
-      >
-    </div>
-    <div class="form-field">
-      <label for="estado">Estado</label>
-      <select class="form-control" id="estado" name="estado">
-        <option value="todos" {% if estado == "todos" %}selected{% endif %}>Todos</option>
-        <option value="activos" {% if estado == "activos" %}selected{% endif %}>Activos</option>
-        <option value="inactivos" {% if estado == "inactivos" %}selected{% endif %}>Inactivos</option>
-      </select>
-    </div>
-    <div class="filter-form__actions">
-      <button class="btn btn--primary" type="submit">Buscar</button>
-      {% if q or estado != "todos" %}
-        <a class="btn btn--secondary" href="{% url 'reportes:inventario' %}">Limpiar</a>
-      {% endif %}
-    </div>
-  </form>
 
   {% if productos %}
     <div class="table-wrap">
@@ -200,6 +386,8 @@
           <tr>
             <th scope="col">Código</th>
             <th scope="col">Nombre</th>
+            <th scope="col">Stock</th>
+            <th scope="col">Mínimo</th>
             <th scope="col">Precio de venta</th>
             <th scope="col">Estado</th>
             <th scope="col">Registrado</th>
@@ -208,10 +396,16 @@
         <tbody>
           {% for producto in productos %}
             <tr>
-              <td>
-                <span class="table__primary">{{ producto.codigo }}</span>
-              </td>
+              <td><span class="table__primary">{{ producto.codigo }}</span></td>
               <td>{{ producto.nombre }}</td>
+              <td>
+                {% if producto.stock_total <= producto.stock_minimo %}
+                  <span class="badge badge--warning">{{ producto.stock_total|floatformat:2 }}</span>
+                {% else %}
+                  <strong>{{ producto.stock_total|floatformat:2 }}</strong>
+                {% endif %}
+              </td>
+              <td class="text-muted">{{ producto.stock_minimo }}</td>
               <td><strong>Bs {{ producto.precio_venta|stringformat:"0.2f" }}</strong></td>
               <td>
                 {% if producto.activo %}
@@ -229,7 +423,7 @@
   {% else %}
     <div class="empty-state">
       <span class="empty-state__icon" aria-hidden="true">IV</span>
-      {% if q or estado != "todos" %}
+      {% if q or estado != "todos" or alerta != "todas" %}
         <h3>No encontramos productos</h3>
         <p>Prueba con otro término o limpia los filtros.</p>
         <p class="empty-state__actions">

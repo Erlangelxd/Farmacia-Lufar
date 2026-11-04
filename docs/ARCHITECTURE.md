@@ -1,6 +1,6 @@
 # Arquitectura — Farmacia Lufar
 
-**Estado:** base funcional con autenticación, módulo de clientes (registro, consulta e historial) y módulo de ventas (registro, consulta y ticket) sobre un catálogo mínimo de productos. Las apps de inventario, compras y reportes siguen en estructura inicial.
+**Estado:** base funcional con autenticación y gestión de usuarios/roles, módulo de clientes (registro, consulta e historial), módulo de ventas (registro, consulta y ticket) y reportes de solo lectura de ventas, compras e inventario. Los modelos de catálogo, compras e inventario ya existen; sus capas de servicio y vistas siguen pendientes.
 
 ## 1. Visión general
 
@@ -24,13 +24,13 @@ flowchart TB
 | App | Responsabilidad | Estado |
 |---|---|---|
 | `core` | Dashboard, mixins, filtros, utilidades compartidas y `ConfiguracionSistema`. No contiene entidades de negocio. | Base implementada |
-| `accounts` | Login, logout, perfil, grupos `Administrador` y `Vendedor`, autorización por rol. | Base funcional |
+| `accounts` | Login, logout, perfil, usuarios, grupos `Administrador` y `Vendedor`, permisos por modelo y autorización por rol. | Implementado |
 | `catalogo` | Categorías, laboratorios, formas farmacéuticas, presentaciones, productos y precios. | Modelos y admin implementados; CRUD visual pendiente |
 | `inventario` | Existencias, lotes y movimientos de entrada, salida y ajuste. | Modelos `Lote` y `MovimientoInventario`; servicios y vistas pendientes |
 | `compras` | Proveedores, compras, detalle y recepción de mercadería. | Modelos `Proveedor`, `Compra` y `DetalleCompra`; vistas pendientes |
 | `clientes` | Datos de clientes e historial comercial. | Registro, consulta e historial implementados |
 | `ventas` | Ventas, detalles, cálculo de totales, cambio y ticket. | Registro, consulta y ticket implementados |
-| `reportes` | Consultas e informes de solo lectura. No tendrá modelos propios. | Solo estructura y ruta |
+| `reportes` | Consultas e informes de solo lectura. No tendrá modelos propios. | Reportes de ventas, compras e inventario implementados |
 
 ### Decisión sobre proveedores
 
@@ -60,9 +60,26 @@ sequenceDiagram
 
 - Se usa el modelo `User` integrado de Django. No se crea un modelo de usuario propio en esta etapa.
 - Los grupos base se crean mediante la migración `accounts.0001_create_default_groups`.
-- `LoginRequiredMixin` protege todas las vistas de gestión. Las vistas de clientes, catálogo mínimo y ventas usan este mixin en esta etapa.
-- `RoleRequiredMixin` permite restringir una vista a grupos concretos. Los superusuarios siempre tienen acceso.
-- Los permisos por modelo se asignarán a los grupos cuando existan los modelos de cada app. Los modelos de catálogo, compras, inventario, clientes y ventas ya existen, pero sus permisos por rol todavía no se aplican en las vistas del sistema.
+- `apps/accounts/permissions.py` es la fuente de verdad de la autorización:
+  `MODULE_ACCESS` define qué módulos ve cada rol, `MANAGED_APPS` limita las apps
+  cuyos permisos se sincronizan y `SELLER_PERMISSIONS` fija el menor privilegio
+  del Vendedor.
+- `sync_role_permissions()` se conecta a `post_migrate` desde
+  `AccountsConfig.ready()` y también se ejecuta con
+  `python manage.py sync_roles`. Asigna al Administrador todos los permisos de
+  `catalogo`, `compras`, `inventario`, `clientes` y `ventas`, y al Vendedor solo
+  los codenames declarados en `SELLER_PERMISSIONS`. La operación es idempotente y
+  conserva permisos personalizados ajenos a las apps gestionadas.
+- `RoleRequiredMixin` exige autenticación y pertenencia a un grupo permitido.
+  Los superusuarios siempre tienen acceso y un usuario autenticado sin el rol
+  recibe `403`.
+- Matriz de acceso: el Vendedor usa panel general, catálogo (consulta),
+  clientes, ventas y reporte de ventas. Inventario, compras, reportes de
+  compras/inventario y gestión de usuarios son exclusivos del Administrador.
+- La gestión visual de usuarios vive en `accounts` (`usuario_crear`,
+  `usuario_editar`, `usuario_estado`). No hay eliminación: solo activación y
+  desactivación. Se protege la propia cuenta, el último administrador activo y
+  la edición de superusuarios por parte de administradores no superusuarios.
 - El login y el logout usan las vistas de Django y protección CSRF. El logout solo acepta POST.
 
 ## 4. Límites entre módulos
@@ -127,7 +144,9 @@ Reglas de esta etapa:
 - **Estilos y scripts:** archivos locales en `static/`. No agregar CDN ni fuentes externas.
 - **Migraciones:** una app por migración lógica; no editar migraciones ya aplicadas; crear una nueva para corregir.
 - **Pruebas:** cada app tendrá pruebas propias; las pruebas transversales viven en `tests/`. Toda regla de negocio nueva debe incluir pruebas.
-- **Seguridad:** toda vista de gestión debe ser autenticada; toda escritura debe usar POST + CSRF; no se guardan contraseñas ni secretos en el repositorio.
+- **Seguridad:** toda vista de gestión debe ser autenticada; los módulos
+  restringidos usan `RoleRequiredMixin`; toda escritura debe usar POST + CSRF;
+  no se guardan contraseñas ni secretos en el repositorio.
 - **Git:** una rama por funcionalidad, PR hacia `develop` y revisión del otro desarrollador.
 
 ## 7. Base de datos y migraciones
@@ -142,18 +161,18 @@ Quedan pendientes las capas de servicio y las vistas:
 2. `compras`: vistas de proveedores y recepción de compras que generen movimientos de entrada.
 3. `ventas`: integrar la salida de inventario en `registrar_venta`.
 4. `catalogo`: CRUD visual de productos y catálogos auxiliares.
-5. `reportes`: consultas de solo lectura sobre los modelos existentes.
 
 ## 8. Roadmap sugerido
 
 | Fase | Entregable | Dependencias |
 |---|---|---|
+| 0 | Autenticación, usuarios, roles y permisos por modelo (implementado) | — |
 | 1 | Catálogo mínimo (implementado) y CRUD visual de productos | `accounts`, `core` |
 | 2 | Inventario y movimientos transaccionales | Fase 1 |
 | 3 | Clientes: registro, consulta e historial (implementado) | `accounts` |
 | 4 | Compras, proveedores y recepción | Fases 1 y 2 |
 | 5 | Ventas: registro, total, cambio y ticket (implementado); salida de inventario pendiente | Fases 1, 2 y 3 |
-| 6 | Reportes de ventas, compras y stock | Fases 2, 4 y 5 |
+| 6 | Reportes de ventas, compras y stock (implementado) | Fases 2, 4 y 5 |
 | 7 | Endurecimiento de seguridad, backups y despliegue | Todas |
 
 ### Reparto sugerido para dos desarrolladores

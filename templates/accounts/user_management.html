@@ -8,40 +8,90 @@
       <p class="eyebrow">Administración</p>
       <h1>Usuarios y permisos</h1>
       <p class="page-header__text">
-        Vista de solo lectura de las cuentas y los grupos base del sistema.
+        Gestiona las cuentas del sistema, asígnale un rol a cada usuario y
+        revisa qué módulos habilita cada rol.
       </p>
     </div>
-    <a class="btn btn--secondary" href="{% url 'accounts:index' %}">
-      Volver a mi cuenta
-    </a>
-  </div>
-
-  <div class="notice">
-    La edición visual de usuarios se implementará en una etapa posterior.
-    Mientras tanto, el superusuario puede gestionar cuentas desde
-    <a href="{% url 'admin:index' %}">Django Admin</a>.
+    <div class="page-header__actions">
+      <a class="btn btn--primary" href="{% url 'accounts:usuario_crear' %}">
+        Nuevo usuario
+      </a>
+      <a class="btn btn--secondary" href="{% url 'accounts:index' %}">
+        Volver a mi cuenta
+      </a>
+    </div>
   </div>
 
   <div class="stat-grid stat-grid--compact">
     <article class="stat-card stat-card--green">
       <span class="stat-card__label">Usuarios</span>
-      <p class="stat-card__value">{{ users|length }}</p>
+      <p class="stat-card__value">{{ total_usuarios }}</p>
       <p class="stat-card__detail">Cuentas registradas</p>
     </article>
     <article class="stat-card stat-card--teal">
-      <span class="stat-card__label">Grupos base</span>
-      <p class="stat-card__value">{{ groups|length }}</p>
-      <p class="stat-card__detail">Roles disponibles</p>
+      <span class="stat-card__label">Activos</span>
+      <p class="stat-card__value">{{ total_activos }}</p>
+      <p class="stat-card__detail">Pueden iniciar sesión</p>
+    </article>
+    <article class="stat-card stat-card--amber">
+      <span class="stat-card__label">Administradores</span>
+      <p class="stat-card__value">{{ total_administradores }}</p>
+      <p class="stat-card__detail">Acceso completo activo</p>
+    </article>
+    <article class="stat-card stat-card--blue">
+      <span class="stat-card__label">Inactivos</span>
+      <p class="stat-card__value">{{ total_inactivos }}</p>
+      <p class="stat-card__detail">Cuentas deshabilitadas</p>
     </article>
   </div>
+
+  <section class="card">
+    <form class="filter-form filter-form--users" method="get" action="{% url 'accounts:usuarios' %}">
+      <div class="form-field">
+        <label for="q">Buscar</label>
+        <input
+          class="form-control"
+          type="search"
+          id="q"
+          name="q"
+          value="{{ q }}"
+          placeholder="Usuario, nombre o correo"
+        >
+      </div>
+      <div class="form-field">
+        <label for="rol">Rol</label>
+        <select class="form-control" id="rol" name="rol">
+          <option value="">Todos</option>
+          {% for value in roles %}
+            <option value="{{ value }}" {% if rol == value %}selected{% endif %}>{{ value }}</option>
+          {% endfor %}
+          <option value="sin_rol" {% if rol == "sin_rol" %}selected{% endif %}>Sin rol</option>
+        </select>
+      </div>
+      <div class="form-field">
+        <label for="estado">Estado</label>
+        <select class="form-control" id="estado" name="estado">
+          <option value="">Todos</option>
+          <option value="activos" {% if estado == "activos" %}selected{% endif %}>Activos</option>
+          <option value="inactivos" {% if estado == "inactivos" %}selected{% endif %}>Inactivos</option>
+        </select>
+      </div>
+      <div class="filter-form__actions">
+        <button class="btn btn--primary" type="submit">Aplicar</button>
+        <a class="btn btn--secondary" href="{% url 'accounts:usuarios' %}">Limpiar</a>
+      </div>
+    </form>
+  </section>
 
   <section class="card">
     <div class="card__header">
       <div>
         <p class="eyebrow">Directorio</p>
         <h2>Usuarios</h2>
+        <p class="card__hint">
+          {{ users|length }} cuenta{{ users|length|pluralize }} encontrada{{ users|length|pluralize }}
+        </p>
       </div>
-      <span class="badge badge--sample">Solo lectura</span>
     </div>
     <div class="table-wrap">
       <table class="table">
@@ -49,8 +99,9 @@
           <tr>
             <th scope="col">Usuario</th>
             <th scope="col">Correo</th>
-            <th scope="col">Roles</th>
+            <th scope="col">Rol</th>
             <th scope="col">Estado</th>
+            <th scope="col">Acciones</th>
           </tr>
         </thead>
         <tbody>
@@ -79,10 +130,37 @@
                   <span class="badge badge--muted">Inactivo</span>
                 {% endif %}
               </td>
+              <td>
+                <div class="table__actions">
+                  {% if account.is_superuser and not user.is_superuser %}
+                    <span class="text-muted">Solo superusuario</span>
+                  {% else %}
+                    <a class="btn btn--secondary btn--small" href="{% url 'accounts:usuario_editar' account.pk %}">
+                      Editar
+                    </a>
+                    {% if account != user %}
+                      <form method="post" action="{% url 'accounts:usuario_estado' account.pk %}">
+                        {% csrf_token %}
+                        {% if account.is_active %}
+                          <button class="btn btn--danger btn--small" type="submit">
+                            Desactivar
+                          </button>
+                        {% else %}
+                          <button class="btn btn--secondary btn--small" type="submit">
+                            Activar
+                          </button>
+                        {% endif %}
+                      </form>
+                    {% else %}
+                      <span class="badge badge--outline">Tu cuenta</span>
+                    {% endif %}
+                  {% endif %}
+                </div>
+              </td>
             </tr>
           {% empty %}
             <tr>
-              <td colspan="4">No hay usuarios registrados.</td>
+              <td colspan="5">No hay usuarios que coincidan con los filtros.</td>
             </tr>
           {% endfor %}
         </tbody>
@@ -94,21 +172,80 @@
     <div class="card__header">
       <div>
         <p class="eyebrow">Autorización</p>
+        <h2>Acceso por rol</h2>
+        <p class="card__hint">
+          Los superusuarios siempre tienen acceso a todos los módulos.
+        </p>
+      </div>
+    </div>
+    <div class="table-wrap">
+      <table class="table">
+        <thead>
+          <tr>
+            <th scope="col">Módulo</th>
+            <th scope="col">Administrador</th>
+            <th scope="col">Vendedor</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for fila in module_access %}
+            <tr>
+              <td>
+                <span class="table__primary">{{ fila.module }}</span>
+                {% if fila.note %}
+                  <span class="table__secondary">{{ fila.note }}</span>
+                {% endif %}
+              </td>
+              <td>
+                {% if fila.admin %}
+                  <span class="badge badge--success">Permitido</span>
+                {% else %}
+                  <span class="badge badge--muted">Sin acceso</span>
+                {% endif %}
+              </td>
+              <td>
+                {% if fila.seller %}
+                  <span class="badge badge--success">Permitido</span>
+                {% else %}
+                  <span class="badge badge--muted">Sin acceso</span>
+                {% endif %}
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="card">
+    <div class="card__header">
+      <div>
+        <p class="eyebrow">Permisos por modelo</p>
         <h2>Grupos base</h2>
+        <p class="card__hint">
+          Se sincronizan automáticamente después de cada migración.
+        </p>
       </div>
     </div>
     <div class="group-grid">
-      {% for group in groups %}
+      {% for card in group_cards %}
         <article class="group-card">
-          <h3>{{ group.name }}</h3>
+          <h3>{{ card.group.name }}</h3>
           <p>
-            {{ group.permissions.count }}
-            permiso{{ group.permissions.count|pluralize:"s" }}
-            asignado{{ group.permissions.count|pluralize:"s" }}.
+            {{ card.total }} permiso{{ card.total|pluralize:"s" }}
+            por modelo.
           </p>
-          <p class="group-card__hint">
-            Los permisos por modelo se asignarán en la siguiente etapa.
-          </p>
+          {% if card.apps %}
+            <div class="badge-list group-card__badges">
+              {% for app_label, cantidad in card.apps %}
+                <span class="badge badge--soft">
+                  {{ app_label }}: {{ cantidad }}
+                </span>
+              {% endfor %}
+            </div>
+          {% else %}
+            <p class="group-card__hint">Sin permisos asignados.</p>
+          {% endif %}
         </article>
       {% empty %}
         <p class="text-muted">No hay grupos creados.</p>

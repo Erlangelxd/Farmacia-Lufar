@@ -70,14 +70,67 @@
         {% endfor %}
       </div>
       <p class="card__hint">
-        Los permisos detallados se asignarán por modelo cuando se implementen
-        los módulos. Por ahora los grupos identifican el rol del usuario.
+        El rol determina los módulos y permisos disponibles. Los permisos por
+        modelo de cada rol se sincronizan automáticamente después de migrar.
       </p>
       {% if can_manage_users %}
         <a class="btn btn--secondary btn--block" href="{% url 'accounts:usuarios' %}">
-          Ver usuarios y grupos
+          Ver usuarios y permisos
         </a>
       {% endif %}
     </section>
   </div>
+
+  <section class="card">
+    <div class="card__header">
+      <div>
+        <p class="eyebrow">Alcance</p>
+        <h2>Módulos disponibles para tu rol</h2>
+        <p class="card__hint">
+          {% if is_admin_role %}
+            Como administrador tienes acceso a todos los módulos del sistema.
+          {% else %}
+            Como vendedor tienes acceso a la operación diaria; los módulos de
+            inventario, compras y administración de usuarios son exclusivos del
+            administrador.
+          {% endif %}
+        </p>
+      </div>
+    </div>
+    <div class="table-wrap">
+      <table class="table">
+        <thead>
+          <tr>
+            <th scope="col">Módulo</th>
+            <th scope="col">Disponible</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for fila in module_access %}
+            {% if is_admin_role and fila.admin %}
+              <tr>
+                <td>
+                  <span class="table__primary">{{ fila.module }}</span>
+                  {% if fila.note %}
+                    <span class="table__secondary">{{ fila.note }}</span>
+                  {% endif %}
+                </td>
+                <td><span class="badge badge--success">Sí</span></td>
+              </tr>
+            {% elif not is_admin_role and fila.seller %}
+              <tr>
+                <td>
+                  <span class="table__primary">{{ fila.module }}</span>
+                  {% if fila.note %}
+                    <span class="table__secondary">{{ fila.note }}</span>
+                  {% endif %}
+                </td>
+                <td><span class="badge badge--success">Sí</span></td>
+              </tr>
+            {% endif %}
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
 {% endblock %}

@@ -1,9 +1,11 @@
 """Vistas iniciales de compras."""
 
+from apps.accounts.constants import ADMIN_GROUP
 from apps.core.views import ModulePlaceholderView
 
 
 class ComprasIndexView(ModulePlaceholderView):
+    allowed_groups = (ADMIN_GROUP,)
     module_title = "Compras"
     module_code = "CP"
     module_description = (

@@ -10,45 +10,252 @@
     </p>
     <h1>Reporte de Compras</h1>
     <p class="page-header__text">
-      Historial de órdenes de compra y análisis de abastecimiento.
+      Periodo:
+      <strong>{{ fecha_inicio|date:"d/m/Y" }}</strong>
+      {% if fecha_inicio != fecha_fin %}
+        → <strong>{{ fecha_fin|date:"d/m/Y" }}</strong>
+      {% endif %}
     </p>
   </div>
 </div>
 
+<!-- Filtros -->
 <section class="card">
-  <div class="placeholder-module">
-    <div class="placeholder-module__icon placeholder-module__icon--amber">
-      <svg viewBox="0 0 24 24" width="36" height="36" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-        <path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/>
-        <line x1="3" y1="6" x2="21" y2="6"/>
-        <path d="M16 10a4 4 0 01-8 0"/>
-      </svg>
+  <form class="filter-form" method="get" action="{% url 'reportes:compras' %}">
+    <div class="form-field">
+      <label for="periodo">Periodo</label>
+      <select class="form-control" id="periodo" name="periodo">
+        {% for val, lbl in periodos %}
+          <option value="{{ val }}" {% if val == periodo_actual %}selected{% endif %}>{{ lbl }}</option>
+        {% endfor %}
+      </select>
     </div>
-    <div class="placeholder-module__body">
-      <h2>Módulo de Compras pendiente</h2>
-      <p>
-        El reporte de compras estará disponible cuando se implemente el módulo de
-        compras con sus modelos de <strong>Proveedor</strong>, <strong>Compra</strong> y
-        <strong>DetalleCompra</strong>.
-      </p>
-      <p class="text-muted">
-        Una vez activado, podrás consultar: órdenes por proveedor, compras por
-        periodo, productos más comprados y monto total de abastecimiento.
-      </p>
-      <div class="placeholder-module__scope">
-        <h3>Alcance planeado</h3>
-        <ul>
-          <li>Historial de órdenes de compra por fecha y proveedor</li>
-          <li>Monto total de compras por periodo</li>
-          <li>Productos con mayor volumen de compra</li>
-          <li>Balance compras vs. ventas por producto</li>
-          <li>Proveedores con mayor movimiento</li>
-        </ul>
+    <div class="form-field">
+      <label for="proveedor">Proveedor</label>
+      <select class="form-control" id="proveedor" name="proveedor">
+        <option value="">Todos</option>
+        {% for p in proveedores %}
+          <option value="{{ p.pk }}" {% if proveedor_id == p.pk|stringformat:"s" %}selected{% endif %}>{{ p.nombre }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="form-field">
+      <label for="estado">Estado</label>
+      <select class="form-control" id="estado" name="estado">
+        <option value="todos" {% if estado_actual == "todos" %}selected{% endif %}>Todos</option>
+        {% for val, lbl in estados %}
+          <option value="{{ val }}" {% if estado_actual == val %}selected{% endif %}>{{ lbl }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="filter-form__actions">
+      <button class="btn btn--primary" type="submit">Aplicar</button>
+      <a class="btn btn--secondary" href="{% url 'reportes:compras' %}">Limpiar</a>
+    </div>
+  </form>
+</section>
+
+<!-- KPIs del periodo -->
+<div class="stat-grid stat-grid--compact">
+  <article class="stat-card stat-card--green">
+    <span class="stat-card__label">Compras registradas</span>
+    <p class="stat-card__value">{{ total_compras }}</p>
+    <p class="stat-card__detail">En el periodo</p>
+  </article>
+  <article class="stat-card stat-card--teal">
+    <span class="stat-card__label">Monto total</span>
+    <p class="stat-card__value">Bs {{ monto_total|stringformat:"0.2f" }}</p>
+    <p class="stat-card__detail">Incluye impuestos</p>
+  </article>
+  <article class="stat-card stat-card--amber">
+    <span class="stat-card__label">Compra promedio</span>
+    <p class="stat-card__value">Bs {{ ticket_promedio|stringformat:"0.2f" }}</p>
+    <p class="stat-card__detail">Por documento</p>
+  </article>
+  <article class="stat-card stat-card--blue">
+    <span class="stat-card__label">Unidades compradas</span>
+    <p class="stat-card__value">{{ unidades_total }}</p>
+    <p class="stat-card__detail">Total de productos</p>
+  </article>
+</div>
+
+<div class="report-grid">
+
+  <!-- Compras por proveedor -->
+  <section class="card">
+    <div class="card__header">
+      <div>
+        <p class="eyebrow">Abastecimiento</p>
+        <h2>Compras por proveedor</h2>
       </div>
-      <a class="btn btn--secondary" href="{% url 'reportes:index' %}">
-        ← Volver a Reportes
-      </a>
+    </div>
+    {% if compras_por_proveedor %}
+      <div class="table-wrap">
+        <table class="table">
+          <thead>
+            <tr>
+              <th scope="col">Proveedor</th>
+              <th scope="col">Compras</th>
+              <th scope="col">Monto</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for p in compras_por_proveedor %}
+              <tr>
+                <td><span class="table__primary">{{ p.proveedor__nombre }}</span></td>
+                <td>{{ p.cantidad }}</td>
+                <td><strong>Bs {{ p.monto|stringformat:"0.2f" }}</strong></td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <div class="empty-state">
+        <span class="empty-state__icon" aria-hidden="true">CO</span>
+        <h3>Sin compras en el periodo</h3>
+        <p>No hay documentos de compra para los filtros seleccionados.</p>
+      </div>
+    {% endif %}
+  </section>
+
+  <!-- Productos más comprados -->
+  <section class="card">
+    <div class="card__header">
+      <div>
+        <p class="eyebrow">Ranking</p>
+        <h2>Productos más comprados</h2>
+        <p class="card__hint">Top 10 por unidades</p>
+      </div>
+    </div>
+    {% if productos_comprados %}
+      <div class="table-wrap">
+        <table class="table">
+          <thead>
+            <tr>
+              <th scope="col">#</th>
+              <th scope="col">Producto</th>
+              <th scope="col">Unidades</th>
+              <th scope="col">Monto</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for p in productos_comprados %}
+              <tr>
+                <td class="text-muted">{{ forloop.counter }}</td>
+                <td>
+                  <span class="table__primary">{{ p.producto__nombre }}</span>
+                  <span class="table__secondary">{{ p.producto__codigo }}</span>
+                </td>
+                <td><strong>{{ p.unidades }}</strong></td>
+                <td>Bs {{ p.monto|stringformat:"0.2f" }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <div class="empty-state">
+        <span class="empty-state__icon" aria-hidden="true">PR</span>
+        <h3>Sin productos comprados</h3>
+        <p>Las compras del periodo no tienen líneas de detalle.</p>
+      </div>
+    {% endif %}
+  </section>
+
+</div>
+
+<!-- Distribución por estado -->
+{% if compras_por_estado %}
+<section class="card">
+  <div class="card__header">
+    <div>
+      <p class="eyebrow">Situación</p>
+      <h2>Compras por estado</h2>
     </div>
   </div>
+  <div class="table-wrap">
+    <table class="table">
+      <thead>
+        <tr>
+          <th scope="col">Estado</th>
+          <th scope="col">Documentos</th>
+          <th scope="col">Monto</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for fila in compras_por_estado %}
+          <tr>
+            <td><span class="table__primary">{{ fila.etiqueta }}</span></td>
+            <td>{{ fila.cantidad }}</td>
+            <td><strong>Bs {{ fila.monto|stringformat:"0.2f" }}</strong></td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endif %}
+
+<!-- Últimas 50 compras del periodo -->
+<section class="card">
+  <div class="card__header">
+    <div>
+      <p class="eyebrow">Detalle</p>
+      <h2>Compras del periodo</h2>
+      <p class="card__hint">
+        {% if total_compras %}
+          Mostrando hasta 50 de {{ total_compras }} compra{{ total_compras|pluralize }}
+        {% else %}
+          Sin compras en el periodo
+        {% endif %}
+      </p>
+    </div>
+  </div>
+
+  {% if compras_lista %}
+    <div class="table-wrap">
+      <table class="table">
+        <thead>
+          <tr>
+            <th scope="col">N°</th>
+            <th scope="col">Fecha</th>
+            <th scope="col">Proveedor</th>
+            <th scope="col">Factura</th>
+            <th scope="col">Registrado por</th>
+            <th scope="col">Estado</th>
+            <th scope="col">Total</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for compra in compras_lista %}
+            <tr>
+              <td><span class="table__primary">{{ compra.numero }}</span></td>
+              <td>{{ compra.fecha_compra|date:"d/m/Y" }}</td>
+              <td>{{ compra.proveedor.nombre }}</td>
+              <td class="text-muted">{{ compra.numero_factura|default:"—" }}</td>
+              <td>{{ compra.usuario.get_full_name|default:compra.usuario.username }}</td>
+              <td>
+                {% if compra.estado == "RECIBIDA" %}
+                  <span class="badge badge--success">Recibida</span>
+                {% elif compra.estado == "ANULADA" %}
+                  <span class="badge badge--neutral">Anulada</span>
+                {% else %}
+                  <span class="badge badge--warning">Borrador</span>
+                {% endif %}
+              </td>
+              <td><strong>Bs {{ compra.total|stringformat:"0.2f" }}</strong></td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <div class="empty-state">
+      <span class="empty-state__icon" aria-hidden="true">CT</span>
+      <h3>Sin compras registradas</h3>
+      <p>Registra compras desde Django Admin para ver este reporte.</p>
+    </div>
+  {% endif %}
 </section>
 {% endblock %}

@@ -1,18 +1,21 @@
 """Vistas del módulo de clientes."""
 
 from django.contrib import messages
-from django.contrib.auth.mixins import LoginRequiredMixin
 from django.db.models import Q
 from django.urls import reverse
 from django.views.generic import CreateView, DetailView, ListView
+
+from apps.accounts.constants import ADMIN_GROUP, SELLER_GROUP
+from apps.core.mixins import RoleRequiredMixin
 
 from .forms import ClienteForm
 from .models import Cliente
 
 
-class ClienteListView(LoginRequiredMixin, ListView):
+class ClienteListView(RoleRequiredMixin, ListView):
     """Listado de clientes con búsqueda, filtro por estado y paginación."""
 
+    allowed_groups = (ADMIN_GROUP, SELLER_GROUP)
     model = Cliente
     template_name = "clientes/cliente_list.html"
     context_object_name = "clientes"
@@ -52,9 +55,10 @@ class ClienteListView(LoginRequiredMixin, ListView):
         return context
 
 
-class ClienteCreateView(LoginRequiredMixin, CreateView):
+class ClienteCreateView(RoleRequiredMixin, CreateView):
     """Registro de un cliente nuevo."""
 
+    allowed_groups = (ADMIN_GROUP, SELLER_GROUP)
     model = Cliente
     form_class = ClienteForm
     template_name = "clientes/cliente_form.html"
@@ -72,9 +76,10 @@ class ClienteCreateView(LoginRequiredMixin, CreateView):
         return reverse("clientes:detalle", kwargs={"pk": self.object.pk})
 
 
-class ClienteDetailView(LoginRequiredMixin, DetailView):
+class ClienteDetailView(RoleRequiredMixin, DetailView):
     """Ficha de consulta de un cliente."""
 
+    allowed_groups = (ADMIN_GROUP, SELLER_GROUP)
     model = Cliente
     template_name = "clientes/cliente_detail.html"
     context_object_name = "cliente"

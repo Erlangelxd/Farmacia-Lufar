@@ -36,16 +36,18 @@
         href="{% url 'catalogo:index' %}"
         {% if current == 'catalogo:index' %}aria-current="page"{% endif %}
       >Catálogo</a>
-      <a
-        class="nav__link{% if current == 'inventario:index' %} is-active{% endif %}"
-        href="{% url 'inventario:index' %}"
-        {% if current == 'inventario:index' %}aria-current="page"{% endif %}
-      >Inventario</a>
-      <a
-        class="nav__link{% if current == 'compras:index' %} is-active{% endif %}"
-        href="{% url 'compras:index' %}"
-        {% if current == 'compras:index' %}aria-current="page"{% endif %}
-      >Compras</a>
+      {% if user.is_superuser or user|has_group:"Administrador" %}
+        <a
+          class="nav__link{% if current == 'inventario:index' %} is-active{% endif %}"
+          href="{% url 'inventario:index' %}"
+          {% if current == 'inventario:index' %}aria-current="page"{% endif %}
+        >Inventario</a>
+        <a
+          class="nav__link{% if current == 'compras:index' %} is-active{% endif %}"
+          href="{% url 'compras:index' %}"
+          {% if current == 'compras:index' %}aria-current="page"{% endif %}
+        >Compras</a>
+      {% endif %}
       <a
         class="nav__link{% if current == 'ventas:index' or current == 'ventas:crear' or current == 'ventas:detalle' or current == 'ventas:ticket' %} is-active{% endif %}"
         href="{% url 'ventas:index' %}"

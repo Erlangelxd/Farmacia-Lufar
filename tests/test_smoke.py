@@ -133,22 +133,33 @@ class InitialStructureTests(TestCase):
         self.assertContains(response, "Datos provisionales")
         self.assertContains(response, "Provisional")
 
-        module_routes = (
-            ("catalogo:index", "Catálogo"),
-            ("inventario:index", "Inventario"),
-            ("compras:index", "Compras"),
-        )
-        for name, title in module_routes:
+        catalogo_response = self.client.get(reverse("catalogo:index"))
+        self.assertEqual(catalogo_response.status_code, 200)
+        self.assertTemplateUsed(catalogo_response, "core/placeholder.html")
+        self.assertContains(catalogo_response, "Catálogo")
+
+        # Inventario y compras son exclusivos del rol Administrador.
+        for name in ("inventario:index", "compras:index"):
             with self.subTest(route=name):
-                module_response = self.client.get(reverse(name))
-                self.assertEqual(module_response.status_code, 200)
-                self.assertTemplateUsed(module_response, "core/placeholder.html")
-                self.assertContains(module_response, title)
+                forbidden = self.client.get(reverse(name))
+                self.assertEqual(forbidden.status_code, 403)
 
         reportes_response = self.client.get(reverse("reportes:index"))
         self.assertEqual(reportes_response.status_code, 200)
         self.assertTemplateUsed(reportes_response, "reportes/index.html")
         self.assertContains(reportes_response, "Reportes")
+        self.assertContains(reportes_response, "Reporte de Ventas")
+        self.assertNotContains(reportes_response, "Reporte de Compras")
+        self.assertNotContains(reportes_response, "Reporte de Inventario")
+
+        self.assertEqual(
+            self.client.get(reverse("reportes:ventas")).status_code, 200
+        )
+        for name in ("reportes:compras", "reportes:inventario"):
+            with self.subTest(route=name):
+                self.assertEqual(
+                    self.client.get(reverse(name)).status_code, 403
+                )
 
         clientes_response = self.client.get(reverse("clientes:index"))
         self.assertEqual(clientes_response.status_code, 200)
@@ -186,6 +197,39 @@ class InitialStructureTests(TestCase):
         self.assertContains(response, ADMIN_GROUP)
         self.assertContains(response, SELLER_GROUP)
         self.assertContains(response, self.seller_user.username)
+
+    def test_administrator_can_access_all_modules_and_reports(self):
+        self.client.force_login(self.admin_user)
+        for name in (
+            "catalogo:index",
+            "inventario:index",
+            "compras:index",
+            "clientes:index",
+            "ventas:index",
+            "reportes:index",
+            "reportes:ventas",
+            "reportes:compras",
+            "reportes:inventario",
+        ):
+            with self.subTest(route=name):
+                self.assertEqual(self.client.get(reverse(name)).status_code, 200)
+
+        index = self.client.get(reverse("reportes:index"))
+        self.assertContains(index, "Compras del mes")
+        self.assertContains(index, "Reporte de Compras")
+        self.assertContains(index, "Reporte de Inventario")
+
+    def test_sidebar_hides_restricted_modules_for_sellers(self):
+        self.client.force_login(self.seller_user)
+        response = self.client.get(reverse("core:dashboard"))
+        self.assertContains(response, reverse("catalogo:index"))
+        self.assertNotContains(response, reverse("inventario:index"))
+        self.assertNotContains(response, reverse("compras:index"))
+
+        self.client.force_login(self.admin_user)
+        admin_response = self.client.get(reverse("core:dashboard"))
+        self.assertContains(admin_response, reverse("inventario:index"))
+        self.assertContains(admin_response, reverse("compras:index"))
 
     def test_login_redirects_to_dashboard(self):
         response = self.client.post(

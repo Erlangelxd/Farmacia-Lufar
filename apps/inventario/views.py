@@ -1,9 +1,11 @@
 """Vistas iniciales de inventario."""
 
+from apps.accounts.constants import ADMIN_GROUP
 from apps.core.views import ModulePlaceholderView
 
 
 class InventarioIndexView(ModulePlaceholderView):
+    allowed_groups = (ADMIN_GROUP,)
     module_title = "Inventario"
     module_code = "IN"
     module_description = (

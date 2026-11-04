@@ -8,8 +8,12 @@
     <p class="eyebrow">Gestión</p>
     <h1>Reportes</h1>
     <p class="page-header__text">
-      Consulta el desempeño de ventas, el estado del inventario y el historial
-      de compras de la farmacia.
+      {% if puede_ver_inventario %}
+        Consulta el desempeño de ventas, el estado del inventario y el historial
+        de compras de la farmacia.
+      {% else %}
+        Consulta el desempeño de las ventas de la farmacia.
+      {% endif %}
     </p>
   </div>
 </div>
@@ -38,6 +42,32 @@
   </article>
 </div>
 
+<!-- Resumen de compras e inventario (solo administradores) -->
+{% if puede_ver_inventario %}
+<div class="stat-grid stat-grid--compact">
+  <article class="stat-card stat-card--amber">
+    <span class="stat-card__label">Compras del mes</span>
+    <p class="stat-card__value">{{ compras_mes }}</p>
+    <p class="stat-card__detail">Documentos registrados</p>
+  </article>
+  <article class="stat-card stat-card--teal">
+    <span class="stat-card__label">Gasto del mes</span>
+    <p class="stat-card__value">Bs {{ gasto_mes|stringformat:"0.2f" }}</p>
+    <p class="stat-card__detail">Compras no anuladas</p>
+  </article>
+  <article class="stat-card stat-card--green">
+    <span class="stat-card__label">Stock bajo</span>
+    <p class="stat-card__value">{{ stock_bajo }}</p>
+    <p class="stat-card__detail">Productos bajo el mínimo</p>
+  </article>
+  <article class="stat-card stat-card--blue">
+    <span class="stat-card__label">Lotes por vencer</span>
+    <p class="stat-card__value">{{ lotes_por_vencer }}</p>
+    <p class="stat-card__detail">Próximos 30 días</p>
+  </article>
+</div>
+{% endif %}
+
 <!-- Accesos a reportes -->
 <div class="report-cards">
 
@@ -57,6 +87,7 @@
     </div>
   </a>
 
+  {% if puede_ver_inventario %}
   <a class="report-card" href="{% url 'reportes:compras' %}">
     <div class="report-card__icon report-card__icon--amber">
       <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -68,13 +99,15 @@
     <div class="report-card__body">
       <h2 class="report-card__title">Reporte de Compras</h2>
       <p class="report-card__desc">
-        Historial de órdenes de compra, proveedores y abastecimiento.
-        Disponible cuando se active el módulo de compras.
+        Historial de compras por periodo, proveedor y estado. Incluye montos
+        de abastecimiento y productos más comprados.
       </p>
       <span class="report-card__link">Ver reporte →</span>
     </div>
   </a>
+  {% endif %}
 
+  {% if puede_ver_inventario %}
   <a class="report-card" href="{% url 'reportes:inventario' %}">
     <div class="report-card__icon report-card__icon--teal">
       <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -86,12 +119,13 @@
     <div class="report-card__body">
       <h2 class="report-card__title">Reporte de Inventario</h2>
       <p class="report-card__desc">
-        Estado actual del catálogo: productos activos, precios y los artículos
-        más vendidos de todos los tiempos.
+        Existencias por lote, valor del inventario, stock bajo y lotes
+        próximos a vencer o vencidos.
       </p>
       <span class="report-card__link">Ver reporte →</span>
     </div>
   </a>
+  {% endif %}
 
 </div>
 {% endblock %}

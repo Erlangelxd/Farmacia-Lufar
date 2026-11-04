@@ -3,7 +3,6 @@
 from decimal import Decimal
 
 from django.contrib import messages
-from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core.exceptions import ValidationError
 from django.db.models import Q, Sum
 from django.shortcuts import redirect, render
@@ -11,16 +10,19 @@ from django.utils import timezone
 from django.views import View
 from django.views.generic import DetailView, ListView
 
+from apps.accounts.constants import ADMIN_GROUP, SELLER_GROUP
 from apps.catalogo.models import Producto
 from apps.clientes.models import Cliente
+from apps.core.mixins import RoleRequiredMixin
 
 from .forms import DetalleVentaFormSet, VentaForm
 from .models import Venta
 from .services import registrar_venta
 
-class VentaListView(LoginRequiredMixin, ListView):
+class VentaListView(RoleRequiredMixin, ListView):
     """Listado de ventas con búsqueda, filtro por cliente y paginación."""
 
+    allowed_groups = (ADMIN_GROUP, SELLER_GROUP)
     model = Venta
     template_name = "ventas/venta_list.html"
     context_object_name = "ventas"
@@ -75,9 +77,10 @@ class VentaListView(LoginRequiredMixin, ListView):
         return context
 
 
-class VentaCreateView(LoginRequiredMixin, View):
+class VentaCreateView(RoleRequiredMixin, View):
     """Registro de una venta con sus líneas de detalle."""
 
+    allowed_groups = (ADMIN_GROUP, SELLER_GROUP)
     template_name = "ventas/venta_form.html"
 
     def get(self, request):
@@ -142,9 +145,10 @@ class VentaCreateView(LoginRequiredMixin, View):
         )
 
 
-class VentaDetailView(LoginRequiredMixin, DetailView):
+class VentaDetailView(RoleRequiredMixin, DetailView):
     """Ficha de consulta de una venta."""
 
+    allowed_groups = (ADMIN_GROUP, SELLER_GROUP)
     model = Venta
     template_name = "ventas/venta_detail.html"
     context_object_name = "venta"

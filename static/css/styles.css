@@ -1034,6 +1034,10 @@ h3 {
   gap: 0.5rem;
 }
 
+.filter-form--users {
+  grid-template-columns: minmax(0, 1.6fr) minmax(150px, 200px) minmax(150px, 200px) auto;
+}
+
 .form-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1275,6 +1279,10 @@ h3 {
   font-size: 0.78rem !important;
 }
 
+.group-card__badges {
+  margin-top: 0.7rem;
+}
+
 /* Botones y formularios */
 .btn {
   display: inline-flex;
@@ -1323,6 +1331,18 @@ h3 {
   border-color: var(--brand);
   background: var(--surface-soft);
   color: var(--brand-ink);
+}
+
+.btn--danger {
+  border-color: var(--danger-soft);
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+
+.btn--danger:hover {
+  border-color: var(--danger);
+  background: var(--danger);
+  color: #fff;
 }
 
 .btn--block {
@@ -1990,7 +2010,8 @@ h3 {
 }
 
 @media (max-width: 700px) {
-  .filter-form {
+  .filter-form,
+  .filter-form--users {
     grid-template-columns: 1fr;
   }
 

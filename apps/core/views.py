@@ -4,6 +4,11 @@ from django.contrib.auth.mixins import LoginRequiredMixin
 from django.utils import timezone
 from django.views.generic import TemplateView
 
+from apps.accounts.constants import ADMIN_GROUP, SELLER_GROUP
+from apps.accounts.permissions import is_administrator
+
+from .mixins import RoleRequiredMixin
+
 
 class DashboardView(LoginRequiredMixin, TemplateView):
     """Panel general con indicadores provisionales de la etapa inicial."""
@@ -13,7 +18,10 @@ class DashboardView(LoginRequiredMixin, TemplateView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context["today"] = timezone.localdate()
-        context["dashboard_cards"] = [
+        can_view_stock = is_administrator(self.request.user)
+        context["can_view_stock"] = can_view_stock
+
+        cards = [
             {
                 "label": "Productos registrados",
                 "value": "128",
@@ -21,35 +29,43 @@ class DashboardView(LoginRequiredMixin, TemplateView):
                 "tone": "green",
             },
             {
-                "label": "Unidades en inventario",
-                "value": "1.240",
-                "detail": "Existencias",
-                "tone": "teal",
-            },
-            {
                 "label": "Ventas del día",
                 "value": "34",
                 "detail": "Operaciones",
                 "tone": "amber",
             },
-            {
-                "label": "Compras del mes",
-                "value": "12",
-                "detail": "Abastecimiento",
-                "tone": "blue",
-            },
         ]
+        if can_view_stock:
+            cards[1:1] = [
+                {
+                    "label": "Unidades en inventario",
+                    "value": "1.240",
+                    "detail": "Existencias",
+                    "tone": "teal",
+                },
+            ]
+            cards.append(
+                {
+                    "label": "Compras del mes",
+                    "value": "12",
+                    "detail": "Abastecimiento",
+                    "tone": "blue",
+                }
+            )
+        context["dashboard_cards"] = cards
         return context
 
 
-class ModulePlaceholderView(LoginRequiredMixin, TemplateView):
+class ModulePlaceholderView(RoleRequiredMixin, TemplateView):
     """Base reutilizable para las páginas iniciales de cada módulo.
 
-    Cada app define su título, descripción y alcance. Cuando se implemente la
-    lógica real, sus vistas podrán dejar de heredar de esta clase.
+    Cada app define su título, descripción, alcance y los roles autorizados.
+    Cuando se implemente la lógica real, sus vistas podrán dejar de heredar de
+    esta clase.
     """
 
     template_name = "core/placeholder.html"
+    allowed_groups = (ADMIN_GROUP, SELLER_GROUP)
     module_title = "Módulo"
     module_code = "MD"
     module_description = ""

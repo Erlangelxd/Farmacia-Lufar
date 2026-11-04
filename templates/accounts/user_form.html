@@ -1,0 +1,169 @@
+{% extends "base.html" %}
+
+{% block title %}{{ form_title }} | Farmacia Lufar{% endblock %}
+
+{% block content %}
+  <div class="page-header">
+    <div>
+      <p class="eyebrow">Usuarios y permisos</p>
+      <h1>{{ form_title }}</h1>
+      <p class="page-header__text">{{ form_subtitle }}</p>
+    </div>
+    <a class="btn btn--secondary" href="{% url 'accounts:usuarios' %}">
+      Volver al listado
+    </a>
+  </div>
+
+  {% if es_superusuario %}
+    <div class="notice notice--warning">
+      Esta cuenta es un superusuario: tiene acceso total al sistema con
+      independencia de su rol. Solo otro superusuario puede modificarla.
+    </div>
+  {% endif %}
+
+  <section class="card">
+    <form method="post" class="client-form" novalidate>
+      {% csrf_token %}
+
+      {% if form.non_field_errors %}
+        <div class="form-errors" role="alert">
+          {% for error in form.non_field_errors %}
+            <p>{{ error }}</p>
+          {% endfor %}
+        </div>
+      {% endif %}
+
+      <div class="form-grid">
+        <div class="form-field">
+          <label for="{{ form.username.id_for_label }}">
+            {{ form.username.label }}
+            <span class="required-mark" aria-hidden="true">*</span>
+          </label>
+          {{ form.username }}
+          {% for error in form.username.errors %}
+            <p class="field-error">{{ error }}</p>
+          {% endfor %}
+        </div>
+
+        <div class="form-field">
+          <label for="{{ form.email.id_for_label }}">
+            {{ form.email.label }}
+          </label>
+          {{ form.email }}
+          {% for error in form.email.errors %}
+            <p class="field-error">{{ error }}</p>
+          {% endfor %}
+        </div>
+
+        <div class="form-field">
+          <label for="{{ form.first_name.id_for_label }}">
+            {{ form.first_name.label }}
+          </label>
+          {{ form.first_name }}
+          {% for error in form.first_name.errors %}
+            <p class="field-error">{{ error }}</p>
+          {% endfor %}
+        </div>
+
+        <div class="form-field">
+          <label for="{{ form.last_name.id_for_label }}">
+            {{ form.last_name.label }}
+          </label>
+          {{ form.last_name }}
+          {% for error in form.last_name.errors %}
+            <p class="field-error">{{ error }}</p>
+          {% endfor %}
+        </div>
+
+        <div class="form-field">
+          <label for="{{ form.role.id_for_label }}">
+            {{ form.role.label }}
+            <span class="required-mark" aria-hidden="true">*</span>
+          </label>
+          {{ form.role }}
+          {% for error in form.role.errors %}
+            <p class="field-error">{{ error }}</p>
+          {% endfor %}
+          <p class="field-help">
+            El rol define los módulos y permisos disponibles en la interfaz.
+          </p>
+        </div>
+
+        <div class="form-field form-field--checkbox">
+          <label class="checkbox-field" for="{{ form.is_active.id_for_label }}">
+            {{ form.is_active }}
+            <span>{{ form.is_active.label }}</span>
+          </label>
+          {% for error in form.is_active.errors %}
+            <p class="field-error">{{ error }}</p>
+          {% endfor %}
+          <p class="field-help">
+            Las cuentas inactivas no pueden iniciar sesión, pero conservan su
+            historial.
+          </p>
+        </div>
+
+        {% if form.nueva_password1 %}
+          <div class="form-field">
+            <label for="{{ form.nueva_password1.id_for_label }}">
+              {{ form.nueva_password1.label }}
+            </label>
+            {{ form.nueva_password1 }}
+            {% for error in form.nueva_password1.errors %}
+              <p class="field-error">{{ error }}</p>
+            {% endfor %}
+            {% if form.nueva_password1.help_text %}
+              <p class="field-help">{{ form.nueva_password1.help_text }}</p>
+            {% endif %}
+          </div>
+
+          <div class="form-field">
+            <label for="{{ form.nueva_password2.id_for_label }}">
+              {{ form.nueva_password2.label }}
+            </label>
+            {{ form.nueva_password2 }}
+            {% for error in form.nueva_password2.errors %}
+              <p class="field-error">{{ error }}</p>
+            {% endfor %}
+          </div>
+        {% else %}
+          <div class="form-field">
+            <label for="{{ form.password1.id_for_label }}">
+              {{ form.password1.label }}
+              <span class="required-mark" aria-hidden="true">*</span>
+            </label>
+            {{ form.password1 }}
+            {% for error in form.password1.errors %}
+              <p class="field-error">{{ error }}</p>
+            {% endfor %}
+            {% if form.password1.help_text %}
+              <p class="field-help">{{ form.password1.help_text }}</p>
+            {% endif %}
+          </div>
+
+          <div class="form-field">
+            <label for="{{ form.password2.id_for_label }}">
+              {{ form.password2.label }}
+              <span class="required-mark" aria-hidden="true">*</span>
+            </label>
+            {{ form.password2 }}
+            {% for error in form.password2.errors %}
+              <p class="field-error">{{ error }}</p>
+            {% endfor %}
+          </div>
+        {% endif %}
+      </div>
+
+      <p class="form-note">
+        Los campos con <span class="required-mark">*</span> son obligatorios.
+      </p>
+
+      <div class="form-actions">
+        <button class="btn btn--primary" type="submit">{{ submit_label }}</button>
+        <a class="btn btn--secondary" href="{% url 'accounts:usuarios' %}">
+          Cancelar
+        </a>
+      </div>
+    </form>
+  </section>
+{% endblock %}
