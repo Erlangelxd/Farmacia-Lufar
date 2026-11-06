@@ -1,0 +1,282 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}{{ form_title }} | Farmacia Lufar{% endblock %}
+
+{% block content %}
+  <div class="page-header">
+    <div>
+      <p class="eyebrow">Compras</p>
+      <h1>{{ form_title }}</h1>
+      <p class="page-header__text">{{ form_subtitle }}</p>
+    </div>
+    <div class="page-header__actions">
+      {% if compra %}
+        <a
+          class="btn btn--secondary"
+          href="{% url 'compras:compra_detalle' compra.pk %}"
+        >Volver a la ficha</a>
+      {% else %}
+        <a class="btn btn--secondary" href="{% url 'compras:index' %}">
+          Volver al listado
+        </a>
+      {% endif %}
+    </div>
+  </div>
+
+  <form method="post" class="sale-form" data-compra-form novalidate>
+    {% csrf_token %}
+
+    {% if form.non_field_errors %}
+      <div class="form-errors" role="alert">
+        {% for error in form.non_field_errors %}
+          <p>{{ error }}</p>
+        {% endfor %}
+      </div>
+    {% endif %}
+
+    <section class="card">
+      <div class="card__header">
+        <div>
+          <p class="eyebrow">Datos generales</p>
+          <h2>Proveedor y factura</h2>
+        </div>
+        {% if compra %}
+          <span class="badge badge--warning">Borrador</span>
+        {% else %}
+          <span class="badge badge--soft">Nuevo borrador</span>
+        {% endif %}
+      </div>
+
+      <div class="form-grid">
+        <div class="form-field">
+          <label for="{{ form.proveedor.id_for_label }}">
+            {{ form.proveedor.label }}
+            <span class="required-mark" aria-hidden="true">*</span>
+          </label>
+          {{ form.proveedor }}
+          {% for error in form.proveedor.errors %}
+            <p class="field-error">{{ error }}</p>
+          {% endfor %}
+          {% if form.proveedor.help_text %}
+            <p class="field-help">
+              {{ form.proveedor.help_text }}
+              <a
+                href="{% url 'compras:proveedor_crear' %}"
+                target="_blank"
+                rel="noopener"
+              >Registrar un proveedor nuevo</a>.
+            </p>
+          {% endif %}
+        </div>
+
+        <div class="form-field">
+          <label for="{{ form.numero_factura.id_for_label }}">
+            {{ form.numero_factura.label }}
+          </label>
+          {{ form.numero_factura }}
+          {% for error in form.numero_factura.errors %}
+            <p class="field-error">{{ error }}</p>
+          {% endfor %}
+          {% if form.numero_factura.help_text %}
+            <p class="field-help">{{ form.numero_factura.help_text }}</p>
+          {% endif %}
+        </div>
+
+        <div class="form-field">
+          <label for="{{ form.fecha_compra.id_for_label }}">
+            {{ form.fecha_compra.label }}
+            <span class="required-mark" aria-hidden="true">*</span>
+          </label>
+          {{ form.fecha_compra }}
+          {% for error in form.fecha_compra.errors %}
+            <p class="field-error">{{ error }}</p>
+          {% endfor %}
+        </div>
+
+        <div class="form-field">
+          <label for="{{ form.impuesto.id_for_label }}">
+            {{ form.impuesto.label }}
+          </label>
+          {{ form.impuesto }}
+          {% for error in form.impuesto.errors %}
+            <p class="field-error">{{ error }}</p>
+          {% endfor %}
+          {% if form.impuesto.help_text %}
+            <p class="field-help">{{ form.impuesto.help_text }}</p>
+          {% endif %}
+        </div>
+
+        <div class="form-field form-field--full">
+          <label for="{{ form.observaciones.id_for_label }}">
+            {{ form.observaciones.label }}
+          </label>
+          {{ form.observaciones }}
+          {% for error in form.observaciones.errors %}
+            <p class="field-error">{{ error }}</p>
+          {% endfor %}
+        </div>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="card__header">
+        <div>
+          <p class="eyebrow">Detalle</p>
+          <h2>Productos de la compra</h2>
+          <p class="card__hint">
+            Puedes repetir un producto en varias líneas para asignarle lotes
+            distintos al recibir la compra.
+          </p>
+        </div>
+        <button
+          type="button"
+          class="btn btn--secondary btn--small"
+          data-compra-add
+        >Agregar producto</button>
+      </div>
+
+      {{ formset.management_form }}
+
+      {% if formset.non_form_errors %}
+        <div class="form-errors" role="alert">
+          {% for error in formset.non_form_errors %}
+            <p>{{ error }}</p>
+          {% endfor %}
+        </div>
+      {% endif %}
+
+      <div class="table-wrap">
+        <table class="table sale-lines">
+          <thead>
+            <tr>
+              <th scope="col">Producto</th>
+              <th scope="col">Cantidad</th>
+              <th scope="col">Costo unitario</th>
+              <th scope="col">Subtotal</th>
+              <th scope="col"><span class="sr-only">Acciones</span></th>
+            </tr>
+          </thead>
+          <tbody data-compra-lines>
+            {% for detalle_form in formset %}
+              <tr
+                class="sale-line{% if detalle_form.DELETE.value %} is-removed{% endif %}"
+                data-compra-line
+              >
+                <td>
+                  {{ detalle_form.id }}
+                  {{ detalle_form.producto }}
+                  {% for error in detalle_form.producto.errors %}
+                    <p class="field-error">{{ error }}</p>
+                  {% endfor %}
+                  {% for error in detalle_form.non_field_errors %}
+                    <p class="field-error">{{ error }}</p>
+                  {% endfor %}
+                </td>
+                <td>
+                  {{ detalle_form.cantidad }}
+                  {% for error in detalle_form.cantidad.errors %}
+                    <p class="field-error">{{ error }}</p>
+                  {% endfor %}
+                </td>
+                <td>
+                  {{ detalle_form.costo_unitario }}
+                  {% for error in detalle_form.costo_unitario.errors %}
+                    <p class="field-error">{{ error }}</p>
+                  {% endfor %}
+                </td>
+                <td>
+                  <span class="sale-line__money">
+                    Bs <span data-compra-line-subtotal>0.00</span>
+                  </span>
+                </td>
+                <td class="table__actions">
+                  <span class="sale-line__delete">
+                    {{ detalle_form.DELETE }}
+                  </span>
+                  <button
+                    type="button"
+                    class="btn btn--secondary btn--small"
+                    data-compra-remove
+                  >Quitar</button>
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+
+      <div class="sale-summary">
+        <div class="sale-summary__row">
+          <span>Subtotal</span>
+          <strong>Bs <span data-compra-subtotal>0.00</span></strong>
+        </div>
+        <div class="sale-summary__row">
+          <span>Impuesto</span>
+          <strong>Bs <span data-compra-tax-preview>0.00</span></strong>
+        </div>
+        <div class="sale-summary__row">
+          <span>Total</span>
+          <strong>Bs <span data-compra-total>0.00</span></strong>
+        </div>
+      </div>
+
+      <p class="form-note">
+        El subtotal y el total definitivos se calculan y validan en el servidor
+        al guardar la compra.
+      </p>
+      <noscript>
+        <p class="notice notice--warning">
+          La vista previa requiere JavaScript. El servidor calculará los totales
+          al guardar.
+        </p>
+      </noscript>
+
+      <div class="form-actions">
+        <button class="btn btn--primary" type="submit">
+          {{ submit_label }}
+        </button>
+        {% if compra %}
+          <a
+            class="btn btn--secondary"
+            href="{% url 'compras:compra_detalle' compra.pk %}"
+          >Cancelar</a>
+        {% else %}
+          <a class="btn btn--secondary" href="{% url 'compras:index' %}">
+            Cancelar
+          </a>
+        {% endif %}
+      </div>
+    </section>
+  </form>
+
+  <template id="compra-line-template">
+    <tr class="sale-line" data-compra-line>
+      <td>
+        {{ formset.empty_form.id }}
+        {{ formset.empty_form.producto }}
+      </td>
+      <td>{{ formset.empty_form.cantidad }}</td>
+      <td>{{ formset.empty_form.costo_unitario }}</td>
+      <td>
+        <span class="sale-line__money">
+          Bs <span data-compra-line-subtotal>0.00</span>
+        </span>
+      </td>
+      <td class="table__actions">
+        <span class="sale-line__delete">
+          {{ formset.empty_form.DELETE }}
+        </span>
+        <button
+          type="button"
+          class="btn btn--secondary btn--small"
+          data-compra-remove
+        >Quitar</button>
+      </td>
+    </tr>
+  </template>
+{% endblock %}
+
+{% block extra_js %}
+  <script src="{% static 'js/compras.js' %}" defer></script>
+{% endblock %}

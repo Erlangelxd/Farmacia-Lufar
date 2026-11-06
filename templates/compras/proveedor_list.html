@@ -1,0 +1,226 @@
+{% extends "base.html" %}
+
+{% block title %}Proveedores | Farmacia Lufar{% endblock %}
+
+{% block content %}
+  <div class="page-header">
+    <div>
+      <p class="eyebrow">Abastecimiento</p>
+      <h1>Proveedores</h1>
+      <p class="page-header__text">
+        Administra las empresas que abastecen productos a la farmacia. Solo los
+        proveedores activos pueden asociarse a nuevas compras.
+      </p>
+    </div>
+    <div class="page-header__actions">
+      <a class="btn btn--secondary" href="{% url 'compras:index' %}">
+        Volver a compras
+      </a>
+      <a class="btn btn--primary" href="{% url 'compras:proveedor_crear' %}">
+        Nuevo proveedor
+      </a>
+    </div>
+  </div>
+
+  <div class="stat-grid stat-grid--compact">
+    <article class="stat-card stat-card--blue">
+      <span class="stat-card__label">Proveedores</span>
+      <p class="stat-card__value">{{ total_proveedores }}</p>
+      <p class="stat-card__detail">Registrados en el sistema</p>
+    </article>
+    <article class="stat-card stat-card--green">
+      <span class="stat-card__label">Activos</span>
+      <p class="stat-card__value">{{ total_activos }}</p>
+      <p class="stat-card__detail">Disponibles para compras</p>
+    </article>
+    <article class="stat-card stat-card--amber">
+      <span class="stat-card__label">Inactivos</span>
+      <p class="stat-card__value">{{ total_inactivos }}</p>
+      <p class="stat-card__detail">No aparecen en nuevas compras</p>
+    </article>
+  </div>
+
+  <section class="card">
+    <form
+      class="filter-form"
+      method="get"
+      action="{% url 'compras:proveedores' %}"
+      role="search"
+    >
+      <div class="form-field filter-form__search">
+        <label for="q">Buscar proveedor</label>
+        <input
+          class="form-control"
+          type="search"
+          id="q"
+          name="q"
+          value="{{ q }}"
+          placeholder="Nombre, NIT, contacto o teléfono"
+        >
+      </div>
+      <div class="form-field">
+        <label for="estado">Estado</label>
+        <select class="form-control" id="estado" name="estado">
+          <option value="">Todos</option>
+          <option value="activos" {% if estado == "activos" %}selected{% endif %}>
+            Activos
+          </option>
+          <option
+            value="inactivos"
+            {% if estado == "inactivos" %}selected{% endif %}
+          >Inactivos</option>
+        </select>
+      </div>
+      <div class="filter-form__actions">
+        <button class="btn btn--primary" type="submit">Buscar</button>
+        {% if q or estado %}
+          <a class="btn btn--secondary" href="{% url 'compras:proveedores' %}">
+            Limpiar
+          </a>
+        {% endif %}
+      </div>
+    </form>
+  </section>
+
+  <section class="card">
+    <div class="card__header">
+      <div>
+        <p class="eyebrow">Directorio</p>
+        <h2>Proveedores registrados</h2>
+        <p class="card__hint">
+          {% if paginator.count %}
+            {{ paginator.count }} resultado{{ paginator.count|pluralize }}
+          {% else %}
+            Sin resultados
+          {% endif %}
+        </p>
+      </div>
+      {% if q or estado %}
+        <span class="badge badge--soft">Filtro aplicado</span>
+      {% endif %}
+    </div>
+
+    {% if proveedores %}
+      <div class="table-wrap">
+        <table class="table">
+          <thead>
+            <tr>
+              <th scope="col">Proveedor</th>
+              <th scope="col">NIT</th>
+              <th scope="col">Contacto</th>
+              <th scope="col">Compras</th>
+              <th scope="col">Recibido</th>
+              <th scope="col">Estado</th>
+              <th scope="col"><span class="sr-only">Acciones</span></th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for proveedor in proveedores %}
+              <tr>
+                <td>
+                  <span class="table__primary">{{ proveedor.nombre }}</span>
+                  {% if proveedor.direccion %}
+                    <span class="table__secondary">
+                      {{ proveedor.direccion }}
+                    </span>
+                  {% endif %}
+                </td>
+                <td>
+                  {% if proveedor.nit %}
+                    {{ proveedor.nit }}
+                  {% else %}
+                    <span class="text-muted">—</span>
+                  {% endif %}
+                </td>
+                <td>
+                  {% if proveedor.contacto %}
+                    <span class="table__primary">{{ proveedor.contacto }}</span>
+                  {% endif %}
+                  {% if proveedor.telefono %}
+                    <span class="table__secondary">
+                      {{ proveedor.telefono }}
+                    </span>
+                  {% endif %}
+                  {% if proveedor.email %}
+                    <span class="table__secondary">{{ proveedor.email }}</span>
+                  {% endif %}
+                  {% if not proveedor.contacto and not proveedor.telefono and not proveedor.email %}
+                    <span class="text-muted">—</span>
+                  {% endif %}
+                </td>
+                <td>{{ proveedor.total_compras }}</td>
+                <td>Bs {{ proveedor.monto_recibido|stringformat:"0.2f" }}</td>
+                <td>
+                  {% if proveedor.activo %}
+                    <span class="badge badge--success">Activo</span>
+                  {% else %}
+                    <span class="badge badge--neutral">Inactivo</span>
+                  {% endif %}
+                </td>
+                <td class="table__actions">
+                  <a
+                    class="btn btn--secondary btn--small"
+                    href="{% url 'compras:proveedor_editar' proveedor.pk %}"
+                  >Editar</a>
+                  <form
+                    method="post"
+                    action="{% url 'compras:proveedor_toggle' proveedor.pk %}"
+                  >
+                    {% csrf_token %}
+                    <button class="btn btn--secondary btn--small" type="submit">
+                      {% if proveedor.activo %}Desactivar{% else %}Activar{% endif %}
+                    </button>
+                  </form>
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <div class="empty-state">
+        <span class="empty-state__icon" aria-hidden="true">PR</span>
+        {% if q or estado %}
+          <h3>No encontramos proveedores</h3>
+          <p>Prueba con otro término de búsqueda o limpia los filtros.</p>
+          <p class="empty-state__actions">
+            <a class="btn btn--secondary" href="{% url 'compras:proveedores' %}">
+              Limpiar filtros
+            </a>
+          </p>
+        {% else %}
+          <h3>Aún no hay proveedores registrados</h3>
+          <p>Registra el primer proveedor para comenzar a comprar.</p>
+          <p class="empty-state__actions">
+            <a
+              class="btn btn--primary"
+              href="{% url 'compras:proveedor_crear' %}"
+            >Registrar primer proveedor</a>
+          </p>
+        {% endif %}
+      </div>
+    {% endif %}
+
+    {% if is_paginated %}
+      <nav class="pagination" aria-label="Paginación de proveedores">
+        <p class="pagination__summary">
+          Página {{ page_obj.number }} de {{ paginator.num_pages }}
+        </p>
+        <div class="pagination__links">
+          {% if page_obj.has_previous %}
+            <a
+              class="btn btn--secondary btn--small"
+              href="?{% if querystring %}{{ querystring }}&{% endif %}page={{ page_obj.previous_page_number }}"
+            >Anterior</a>
+          {% endif %}
+          {% if page_obj.has_next %}
+            <a
+              class="btn btn--secondary btn--small"
+              href="?{% if querystring %}{{ querystring }}&{% endif %}page={{ page_obj.next_page_number }}"
+            >Siguiente</a>
+          {% endif %}
+        </div>
+      </nav>
+    {% endif %}
+  </section>
+{% endblock %}

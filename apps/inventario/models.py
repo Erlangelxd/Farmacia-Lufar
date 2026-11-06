@@ -8,6 +8,7 @@ servicios transaccionales correspondientes.
 from decimal import Decimal
 
 from django.conf import settings
+from django.core.exceptions import ValidationError
 from django.core.validators import MinValueValidator
 from django.db import models
 from django.db.models import Q
@@ -69,6 +70,70 @@ class Lote(models.Model):
     def __str__(self) -> str:
         return f"{self.producto} — lote {self.codigo_lote}"
 
+    def clean(self):
+        """Normaliza el código y valida fechas, duplicados y desactivación."""
+        super().clean()
+        self.codigo_lote = (self.codigo_lote or "").strip().upper()
+
+        if not self.codigo_lote:
+            raise ValidationError(
+                {"codigo_lote": "Ingresa el código del lote."}
+            )
+
+        if self.codigo_lote and self.producto_id:
+            duplicados = Lote.objects.filter(
+                producto_id=self.producto_id,
+                codigo_lote__iexact=self.codigo_lote,
+            )
+            if self.pk:
+                duplicados = duplicados.exclude(pk=self.pk)
+            if duplicados.exists():
+                raise ValidationError(
+                    {
+                        "codigo_lote": (
+                            "El producto ya tiene un lote con ese código."
+                        )
+                    }
+                )
+
+        if (
+            self.fecha_fabricacion
+            and self.fecha_vencimiento
+            and self.fecha_fabricacion > self.fecha_vencimiento
+        ):
+            raise ValidationError(
+                {
+                    "fecha_vencimiento": (
+                        "La fecha de vencimiento debe ser posterior a la "
+                        "fecha de fabricación."
+                    )
+                }
+            )
+
+        if (
+            self.pk
+            and not self.activo
+            and self.stock_actual > Decimal("0.00")
+        ):
+            raise ValidationError(
+                {
+                    "activo": (
+                        "No puedes desactivar un lote que todavía tiene "
+                        "existencias."
+                    )
+                }
+            )
+
+    def save(self, *args, **kwargs):
+        """Normaliza el código del lote antes de guardar."""
+        self.codigo_lote = (self.codigo_lote or "").strip().upper()
+        super().save(*args, **kwargs)
+
+    @property
+    def tiene_stock(self) -> bool:
+        """Indica si el lote conserva existencias."""
+        return self.stock_actual > Decimal("0.00")
+
 
 class MovimientoInventario(models.Model):
     """Movimiento inmutable que explica cada cambio de existencias."""
@@ -79,6 +144,9 @@ class MovimientoInventario(models.Model):
         SALIDA = "SALIDA", "Salida"
         AJUSTE_POSITIVO = "AJUSTE_POSITIVO", "Ajuste positivo"
         AJUSTE_NEGATIVO = "AJUSTE_NEGATIVO", "Ajuste negativo"
+
+    TIPOS_ENTRADA = (Tipo.INICIAL, Tipo.ENTRADA, Tipo.AJUSTE_POSITIVO)
+    TIPOS_SALIDA = (Tipo.SALIDA, Tipo.AJUSTE_NEGATIVO)
 
     lote = models.ForeignKey(
         Lote,
@@ -139,3 +207,13 @@ class MovimientoInventario(models.Model):
 
     def __str__(self) -> str:
         return f"{self.get_tipo_display()} — {self.lote}"
+
+    @property
+    def es_entrada(self) -> bool:
+        """Indica si el movimiento aumenta las existencias."""
+        return self.tipo in self.TIPOS_ENTRADA
+
+    @property
+    def signo(self) -> int:
+        """Signo que aplica el movimiento sobre el stock del lote."""
+        return 1 if self.es_entrada else -1

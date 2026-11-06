@@ -1,0 +1,107 @@
+{% extends "base.html" %}
+
+{% block title %}{{ form_title }} | Farmacia Lufar{% endblock %}
+
+{% block content %}
+  <div class="page-header">
+    <div>
+      <p class="eyebrow">
+        <a href="{% url 'inventario:index' %}">Inventario</a> /
+        <a href="{% url 'inventario:movimientos' %}">Movimientos</a>
+      </p>
+      <h1>{{ form_title }}</h1>
+      <p class="page-header__text">{{ form_subtitle }}</p>
+    </div>
+    <a class="btn btn--secondary" href="{% url 'inventario:movimientos' %}">
+      Volver a movimientos
+    </a>
+  </div>
+
+  <div class="notice notice--warning" role="note">
+    Las entradas y los ajustes positivos aumentan el stock. Las salidas y los
+    ajustes negativos lo reducen y nunca pueden dejar el lote en negativo.
+  </div>
+
+  <section class="card">
+    <form method="post" class="client-form" novalidate>
+      {% csrf_token %}
+
+      {% if form.non_field_errors %}
+        <div class="form-errors" role="alert">
+          {% for error in form.non_field_errors %}
+            <p>{{ error }}</p>
+          {% endfor %}
+        </div>
+      {% endif %}
+
+      <div class="form-grid">
+        <div class="form-field form-field--full">
+          <label for="{{ form.lote.id_for_label }}">
+            {{ form.lote.label }}
+            <span class="required-mark" aria-hidden="true">*</span>
+          </label>
+          {{ form.lote }}
+          {% for error in form.lote.errors %}
+            <p class="field-error">{{ error }}</p>
+          {% endfor %}
+          {% if form.lote.help_text %}
+            <p class="field-help">{{ form.lote.help_text }}</p>
+          {% endif %}
+        </div>
+
+        <div class="form-field">
+          <label for="{{ form.tipo.id_for_label }}">
+            {{ form.tipo.label }}
+            <span class="required-mark" aria-hidden="true">*</span>
+          </label>
+          {{ form.tipo }}
+          {% for error in form.tipo.errors %}
+            <p class="field-error">{{ error }}</p>
+          {% endfor %}
+          {% if form.tipo.help_text %}
+            <p class="field-help">{{ form.tipo.help_text }}</p>
+          {% endif %}
+        </div>
+
+        <div class="form-field">
+          <label for="{{ form.cantidad.id_for_label }}">
+            {{ form.cantidad.label }}
+            <span class="required-mark" aria-hidden="true">*</span>
+          </label>
+          {{ form.cantidad }}
+          {% for error in form.cantidad.errors %}
+            <p class="field-error">{{ error }}</p>
+          {% endfor %}
+          {% if form.cantidad.help_text %}
+            <p class="field-help">{{ form.cantidad.help_text }}</p>
+          {% endif %}
+        </div>
+
+        <div class="form-field form-field--full">
+          <label for="{{ form.motivo.id_for_label }}">
+            {{ form.motivo.label }}
+          </label>
+          {{ form.motivo }}
+          {% for error in form.motivo.errors %}
+            <p class="field-error">{{ error }}</p>
+          {% endfor %}
+          {% if form.motivo.help_text %}
+            <p class="field-help">{{ form.motivo.help_text }}</p>
+          {% endif %}
+        </div>
+      </div>
+
+      <p class="form-note">
+        Los campos con <span class="required-mark">*</span> son obligatorios.
+        El movimiento es inmutable y queda asociado al usuario que lo registra.
+      </p>
+
+      <div class="form-actions">
+        <button class="btn btn--primary" type="submit">{{ submit_label }}</button>
+        <a class="btn btn--secondary" href="{% url 'inventario:movimientos' %}">
+          Cancelar
+        </a>
+      </div>
+    </form>
+  </section>
+{% endblock %}

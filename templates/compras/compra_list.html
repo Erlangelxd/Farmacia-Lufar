@@ -1,0 +1,239 @@
+{% extends "base.html" %}
+
+{% block title %}Compras | Farmacia Lufar{% endblock %}
+
+{% block content %}
+  <div class="page-header">
+    <div>
+      <p class="eyebrow">Abastecimiento</p>
+      <h1>Compras</h1>
+      <p class="page-header__text">
+        Registra compras a proveedores, edita borradores y recibe mercadería
+        para actualizar el inventario.
+      </p>
+    </div>
+    <div class="page-header__actions">
+      <a class="btn btn--secondary" href="{% url 'compras:proveedores' %}">
+        Proveedores
+      </a>
+      <a class="btn btn--primary" href="{% url 'compras:compra_crear' %}">
+        Nueva compra
+      </a>
+    </div>
+  </div>
+
+  <div class="stat-grid stat-grid--compact">
+    <article class="stat-card stat-card--blue">
+      <span class="stat-card__label">Compras totales</span>
+      <p class="stat-card__value">{{ total_compras }}</p>
+      <p class="stat-card__detail">Documentos registrados</p>
+    </article>
+    <article class="stat-card stat-card--amber">
+      <span class="stat-card__label">En borrador</span>
+      <p class="stat-card__value">{{ total_borradores }}</p>
+      <p class="stat-card__detail">Pendientes de recepción</p>
+    </article>
+    <article class="stat-card stat-card--green">
+      <span class="stat-card__label">Recibidas</span>
+      <p class="stat-card__value">{{ total_recibidas }}</p>
+      <p class="stat-card__detail">
+        Bs {{ monto_recibido|stringformat:"0.2f" }} en mercadería
+      </p>
+    </article>
+    <article class="stat-card stat-card--teal">
+      <span class="stat-card__label">Compras del mes</span>
+      <p class="stat-card__value">{{ compras_mes }}</p>
+      <p class="stat-card__detail">Registradas en el mes actual</p>
+    </article>
+  </div>
+
+  <section class="card">
+    <form
+      class="filter-form"
+      method="get"
+      action="{% url 'compras:index' %}"
+      role="search"
+    >
+      <div class="form-field filter-form__search">
+        <label for="q">Buscar compra</label>
+        <input
+          class="form-control"
+          type="search"
+          id="q"
+          name="q"
+          value="{{ q }}"
+          placeholder="N° de compra, factura, proveedor o producto"
+        >
+      </div>
+      <div class="form-field">
+        <label for="proveedor">Proveedor</label>
+        <select class="form-control" id="proveedor" name="proveedor">
+          <option value="">Todos</option>
+          {% for item in proveedores %}
+            <option
+              value="{{ item.pk }}"
+              {% if proveedor_id == item.pk|stringformat:"s" %}selected{% endif %}
+            >{{ item.nombre }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="form-field">
+        <label for="estado">Estado</label>
+        <select class="form-control" id="estado" name="estado">
+          <option value="">Todos</option>
+          {% for valor, etiqueta in estados %}
+            <option
+              value="{{ valor }}"
+              {% if estado == valor %}selected{% endif %}
+            >{{ etiqueta }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="filter-form__actions">
+        <button class="btn btn--primary" type="submit">Buscar</button>
+        {% if q or proveedor_id or estado %}
+          <a class="btn btn--secondary" href="{% url 'compras:index' %}">
+            Limpiar
+          </a>
+        {% endif %}
+      </div>
+    </form>
+  </section>
+
+  <section class="card">
+    <div class="card__header">
+      <div>
+        <p class="eyebrow">Historial</p>
+        <h2>Compras registradas</h2>
+        <p class="card__hint">
+          {% if paginator.count %}
+            {{ paginator.count }} resultado{{ paginator.count|pluralize }}
+          {% else %}
+            Sin resultados
+          {% endif %}
+        </p>
+      </div>
+      {% if q or proveedor_id or estado %}
+        <span class="badge badge--soft">Filtro aplicado</span>
+      {% endif %}
+    </div>
+
+    {% if compras %}
+      <div class="table-wrap">
+        <table class="table">
+          <thead>
+            <tr>
+              <th scope="col">N°</th>
+              <th scope="col">Fecha</th>
+              <th scope="col">Proveedor</th>
+              <th scope="col">Factura</th>
+              <th scope="col">Líneas</th>
+              <th scope="col">Total</th>
+              <th scope="col">Estado</th>
+              <th scope="col"><span class="sr-only">Acciones</span></th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for compra in compras %}
+              <tr>
+                <td>
+                  <a
+                    class="table__primary"
+                    href="{% url 'compras:compra_detalle' compra.pk %}"
+                  >{{ compra.numero }}</a>
+                  <span class="table__secondary">
+                    {{ compra.usuario.get_full_name|default:compra.usuario.username }}
+                  </span>
+                </td>
+                <td>{{ compra.fecha_compra|date:"d/m/Y" }}</td>
+                <td>
+                  <span class="table__primary">{{ compra.proveedor.nombre }}</span>
+                  {% if compra.proveedor.nit %}
+                    <span class="table__secondary">
+                      NIT {{ compra.proveedor.nit }}
+                    </span>
+                  {% endif %}
+                </td>
+                <td>
+                  {% if compra.numero_factura %}
+                    {{ compra.numero_factura }}
+                  {% else %}
+                    <span class="text-muted">—</span>
+                  {% endif %}
+                </td>
+                <td>{{ compra.detalles.all|length }}</td>
+                <td>
+                  <strong>Bs {{ compra.total|stringformat:"0.2f" }}</strong>
+                </td>
+                <td>
+                  {% if compra.estado == "BORRADOR" %}
+                    <span class="badge badge--warning">Borrador</span>
+                  {% elif compra.estado == "RECIBIDA" %}
+                    <span class="badge badge--success">Recibida</span>
+                  {% else %}
+                    <span class="badge badge--muted">Anulada</span>
+                  {% endif %}
+                </td>
+                <td class="table__actions">
+                  <a
+                    class="btn btn--secondary btn--small"
+                    href="{% url 'compras:compra_detalle' compra.pk %}"
+                  >Ver ficha</a>
+                  {% if compra.estado == "BORRADOR" %}
+                    <a
+                      class="btn btn--secondary btn--small"
+                      href="{% url 'compras:compra_editar' compra.pk %}"
+                    >Editar</a>
+                  {% endif %}
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <div class="empty-state">
+        <span class="empty-state__icon" aria-hidden="true">CP</span>
+        {% if q or proveedor_id or estado %}
+          <h3>No encontramos compras</h3>
+          <p>Prueba con otro término de búsqueda o limpia los filtros.</p>
+          <p class="empty-state__actions">
+            <a class="btn btn--secondary" href="{% url 'compras:index' %}">
+              Limpiar filtros
+            </a>
+          </p>
+        {% else %}
+          <h3>Aún no hay compras registradas</h3>
+          <p>Registra la primera compra para comenzar el historial.</p>
+          <p class="empty-state__actions">
+            <a class="btn btn--primary" href="{% url 'compras:compra_crear' %}">
+              Registrar primera compra
+            </a>
+          </p>
+        {% endif %}
+      </div>
+    {% endif %}
+
+    {% if is_paginated %}
+      <nav class="pagination" aria-label="Paginación de compras">
+        <p class="pagination__summary">
+          Página {{ page_obj.number }} de {{ paginator.num_pages }}
+        </p>
+        <div class="pagination__links">
+          {% if page_obj.has_previous %}
+            <a
+              class="btn btn--secondary btn--small"
+              href="?{% if querystring %}{{ querystring }}&{% endif %}page={{ page_obj.previous_page_number }}"
+            >Anterior</a>
+          {% endif %}
+          {% if page_obj.has_next %}
+            <a
+              class="btn btn--secondary btn--small"
+              href="?{% if querystring %}{{ querystring }}&{% endif %}page={{ page_obj.next_page_number }}"
+            >Siguiente</a>
+          {% endif %}
+        </div>
+      </nav>
+    {% endif %}
+  </section>
+{% endblock %}

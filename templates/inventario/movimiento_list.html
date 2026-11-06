@@ -1,0 +1,209 @@
+{% extends "base.html" %}
+
+{% block title %}Movimientos de inventario | Farmacia Lufar{% endblock %}
+
+{% block content %}
+  <div class="page-header">
+    <div>
+      <p class="eyebrow">
+        <a href="{% url 'inventario:index' %}">Inventario</a> / Movimientos
+      </p>
+      <h1>Movimientos de inventario</h1>
+      <p class="page-header__text">
+        Historial de entradas, salidas y ajustes que explican el stock actual.
+      </p>
+    </div>
+    <div class="page-header__actions">
+      <a class="btn btn--secondary" href="{% url 'inventario:lotes' %}">
+        Lotes
+      </a>
+      <a class="btn btn--primary" href="{% url 'inventario:movimiento_crear' %}">
+        Nuevo movimiento
+      </a>
+    </div>
+  </div>
+
+  <div class="stat-grid stat-grid--compact">
+    <article class="stat-card stat-card--green">
+      <span class="stat-card__label">Movimientos</span>
+      <p class="stat-card__value">{{ total_movimientos }}</p>
+      <p class="stat-card__detail">Registrados en el historial</p>
+    </article>
+    <article class="stat-card stat-card--teal">
+      <span class="stat-card__label">Entradas</span>
+      <p class="stat-card__value">{{ total_entradas }}</p>
+      <p class="stat-card__detail">Incluye inventario inicial</p>
+    </article>
+    <article class="stat-card stat-card--amber">
+      <span class="stat-card__label">Salidas</span>
+      <p class="stat-card__value">{{ total_salidas }}</p>
+      <p class="stat-card__detail">Unidades retiradas del stock</p>
+    </article>
+    <article class="stat-card stat-card--blue">
+      <span class="stat-card__label">Ajustes</span>
+      <p class="stat-card__value">{{ total_ajustes }}</p>
+      <p class="stat-card__detail">Correcciones positivas o negativas</p>
+    </article>
+  </div>
+
+  <section class="card">
+    <form method="get" class="filter-form">
+      <div class="form-field">
+        <label for="q">Buscar</label>
+        <input
+          class="form-control"
+          type="search"
+          id="q"
+          name="q"
+          value="{{ q }}"
+          placeholder="Producto, lote, motivo o usuario"
+        >
+      </div>
+      <div class="form-field">
+        <label for="tipo">Tipo</label>
+        <select class="form-control" id="tipo" name="tipo">
+          <option value="">Todos</option>
+          {% for valor, etiqueta in tipos %}
+            <option value="{{ valor }}"{% if tipo == valor %} selected{% endif %}>
+              {{ etiqueta }}
+            </option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="filter-form__actions">
+        <button class="btn btn--primary" type="submit">Buscar</button>
+        {% if q or tipo %}
+          <a class="btn btn--secondary" href="{% url 'inventario:movimientos' %}">
+            Limpiar
+          </a>
+        {% endif %}
+      </div>
+    </form>
+  </section>
+
+  <section class="card">
+    <div class="card__header">
+      <div>
+        <p class="eyebrow">Trazabilidad</p>
+        <h2>Historial de movimientos</h2>
+        <p class="card__hint">
+          {% if paginator.count %}
+            {{ paginator.count }} resultado{{ paginator.count|pluralize }}
+          {% else %}
+            Sin resultados
+          {% endif %}
+        </p>
+      </div>
+      {% if q or tipo %}
+        <span class="badge badge--soft">Filtro aplicado</span>
+      {% endif %}
+    </div>
+
+    {% if movimientos %}
+      <div class="table-wrap">
+        <table class="table">
+          <thead>
+            <tr>
+              <th scope="col">Fecha</th>
+              <th scope="col">Producto</th>
+              <th scope="col">Lote</th>
+              <th scope="col">Tipo</th>
+              <th scope="col">Cantidad</th>
+              <th scope="col">Stock resultante</th>
+              <th scope="col">Motivo</th>
+              <th scope="col">Usuario</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for movimiento in movimientos %}
+              <tr>
+                <td class="text-muted">
+                  {{ movimiento.fecha|date:"d/m/Y H:i" }}
+                </td>
+                <td>
+                  <span class="table__primary">
+                    {{ movimiento.lote.producto.nombre }}
+                  </span>
+                  <span class="table__secondary">
+                    {{ movimiento.lote.producto.codigo }}
+                  </span>
+                </td>
+                <td>{{ movimiento.lote.codigo_lote }}</td>
+                <td>
+                  {% if movimiento.tipo == "SALIDA" or movimiento.tipo == "AJUSTE_NEGATIVO" %}
+                    <span class="badge badge--muted">
+                      {{ movimiento.get_tipo_display }}
+                    </span>
+                  {% elif movimiento.tipo == "AJUSTE_POSITIVO" %}
+                    <span class="badge badge--warning">
+                      {{ movimiento.get_tipo_display }}
+                    </span>
+                  {% else %}
+                    <span class="badge badge--success">
+                      {{ movimiento.get_tipo_display }}
+                    </span>
+                  {% endif %}
+                </td>
+                <td>
+                  {% if movimiento.es_entrada %}+{% else %}−{% endif %}
+                  {{ movimiento.cantidad|floatformat:2 }}
+                </td>
+                <td><strong>{{ movimiento.stock_resultante|floatformat:2 }}</strong></td>
+                <td class="text-muted">{{ movimiento.motivo|default:"—" }}</td>
+                <td class="text-muted">
+                  {{ movimiento.usuario.get_full_name|default:movimiento.usuario.username }}
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <div class="empty-state">
+        <span class="empty-state__icon" aria-hidden="true">MV</span>
+        {% if q or tipo %}
+          <h3>No encontramos movimientos</h3>
+          <p>Prueba con otro término de búsqueda o limpia los filtros.</p>
+          <p class="empty-state__actions">
+            <a class="btn btn--secondary" href="{% url 'inventario:movimientos' %}">
+              Limpiar filtros
+            </a>
+          </p>
+        {% else %}
+          <h3>Aún no hay movimientos registrados</h3>
+          <p>
+            Los movimientos se crean al dar de alta un lote con stock o al
+            registrar una entrada, salida o ajuste.
+          </p>
+          <p class="empty-state__actions">
+            <a class="btn btn--primary" href="{% url 'inventario:movimiento_crear' %}">
+              Registrar primer movimiento
+            </a>
+          </p>
+        {% endif %}
+      </div>
+    {% endif %}
+
+    {% if is_paginated %}
+      <nav class="pagination" aria-label="Paginación de movimientos">
+        <p class="pagination__summary">
+          Página {{ page_obj.number }} de {{ paginator.num_pages }}
+        </p>
+        <div class="pagination__links">
+          {% if page_obj.has_previous %}
+            <a
+              class="btn btn--secondary btn--small"
+              href="?{% if querystring %}{{ querystring }}&{% endif %}page={{ page_obj.previous_page_number }}"
+            >Anterior</a>
+          {% endif %}
+          {% if page_obj.has_next %}
+            <a
+              class="btn btn--secondary btn--small"
+              href="?{% if querystring %}{{ querystring }}&{% endif %}page={{ page_obj.next_page_number }}"
+            >Siguiente</a>
+          {% endif %}
+        </div>
+      </nav>
+    {% endif %}
+  </section>
+{% endblock %}

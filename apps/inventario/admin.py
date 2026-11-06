@@ -16,8 +16,11 @@ class LoteAdmin(admin.ModelAdmin):
     )
     list_filter = ("activo", "fecha_vencimiento")
     search_fields = ("codigo_lote", "producto__codigo", "producto__nombre")
-    readonly_fields = ("creado_en", "actualizado_en")
+    readonly_fields = ("stock_actual", "creado_en", "actualizado_en")
     list_per_page = 25
+
+    def has_delete_permission(self, request, obj=None):
+        return False
 
 
 @admin.register(MovimientoInventario)

@@ -1,0 +1,257 @@
+{% extends "base.html" %}
+
+{% block title %}Lotes de inventario | Farmacia Lufar{% endblock %}
+
+{% block content %}
+  <div class="page-header">
+    <div>
+      <p class="eyebrow">
+        <a href="{% url 'inventario:index' %}">Inventario</a> / Lotes
+      </p>
+      <h1>Lotes registrados</h1>
+      <p class="page-header__text">
+        Consulta existencias, fechas de vencimiento y estado de cada lote.
+      </p>
+    </div>
+    <div class="page-header__actions">
+      <a class="btn btn--secondary" href="{% url 'inventario:movimientos' %}">
+        Movimientos
+      </a>
+      <a class="btn btn--primary" href="{% url 'inventario:lote_crear' %}">
+        Nuevo lote
+      </a>
+    </div>
+  </div>
+
+  <div class="stat-grid stat-grid--compact">
+    <article class="stat-card stat-card--green">
+      <span class="stat-card__label">Lotes</span>
+      <p class="stat-card__value">{{ total_lotes }}</p>
+      <p class="stat-card__detail">Registrados en el inventario</p>
+    </article>
+    <article class="stat-card stat-card--teal">
+      <span class="stat-card__label">Activos</span>
+      <p class="stat-card__value">{{ total_activos }}</p>
+      <p class="stat-card__detail">Disponibles para movimientos</p>
+    </article>
+    <article class="stat-card stat-card--amber">
+      <span class="stat-card__label">Inactivos</span>
+      <p class="stat-card__value">{{ total_inactivos }}</p>
+      <p class="stat-card__detail">Sin movimientos permitidos</p>
+    </article>
+    <article class="stat-card stat-card--blue">
+      <span class="stat-card__label">Con existencias</span>
+      <p class="stat-card__value">{{ total_con_stock }}</p>
+      <p class="stat-card__detail">Lotes con stock mayor que cero</p>
+    </article>
+  </div>
+
+  <section class="card">
+    <form method="get" class="filter-form filter-form--catalog">
+      <div class="form-field">
+        <label for="q">Buscar</label>
+        <input
+          class="form-control"
+          type="search"
+          id="q"
+          name="q"
+          value="{{ q }}"
+          placeholder="Producto o código de lote"
+        >
+      </div>
+      <div class="form-field">
+        <label for="estado">Estado</label>
+        <select class="form-control" id="estado" name="estado">
+          <option value="activos"{% if estado == "activos" %} selected{% endif %}>
+            Activos
+          </option>
+          <option value="inactivos"{% if estado == "inactivos" %} selected{% endif %}>
+            Inactivos
+          </option>
+          <option value="todos"{% if estado == "todos" %} selected{% endif %}>
+            Todos
+          </option>
+        </select>
+      </div>
+      <div class="form-field">
+        <label for="vencimiento">Vencimiento</label>
+        <select class="form-control" id="vencimiento" name="vencimiento">
+          <option value="todos"{% if vencimiento == "todos" %} selected{% endif %}>
+            Todos
+          </option>
+          <option value="por_vencer"{% if vencimiento == "por_vencer" %} selected{% endif %}>
+            Por vencer
+          </option>
+          <option value="vencidos"{% if vencimiento == "vencidos" %} selected{% endif %}>
+            Vencidos
+          </option>
+          <option value="sin_vencimiento"{% if vencimiento == "sin_vencimiento" %} selected{% endif %}>
+            Sin fecha
+          </option>
+        </select>
+      </div>
+      <div class="filter-form__actions">
+        <button class="btn btn--primary" type="submit">Buscar</button>
+        {% if q or estado != "activos" or vencimiento != "todos" %}
+          <a class="btn btn--secondary" href="{% url 'inventario:lotes' %}">
+            Limpiar
+          </a>
+        {% endif %}
+      </div>
+    </form>
+  </section>
+
+  <section class="card">
+    <div class="card__header">
+      <div>
+        <p class="eyebrow">Trazabilidad</p>
+        <h2>Lotes de inventario</h2>
+        <p class="card__hint">
+          {% if paginator.count %}
+            {{ paginator.count }} resultado{{ paginator.count|pluralize }}
+          {% else %}
+            Sin resultados
+          {% endif %}
+        </p>
+      </div>
+      {% if q or estado != "activos" or vencimiento != "todos" %}
+        <span class="badge badge--soft">Filtro aplicado</span>
+      {% endif %}
+    </div>
+
+    {% if lotes %}
+      <div class="table-wrap">
+        <table class="table">
+          <thead>
+            <tr>
+              <th scope="col">Producto</th>
+              <th scope="col">Lote</th>
+              <th scope="col">Vencimiento</th>
+              <th scope="col">Ingreso</th>
+              <th scope="col">Stock</th>
+              <th scope="col">Estado</th>
+              <th scope="col"><span class="sr-only">Acciones</span></th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for lote in lotes %}
+              <tr>
+                <td>
+                  <span class="table__primary">{{ lote.producto.nombre }}</span>
+                  <span class="table__secondary">{{ lote.producto.codigo }}</span>
+                </td>
+                <td><span class="table__primary">{{ lote.codigo_lote }}</span></td>
+                <td>
+                  {% if lote.fecha_vencimiento %}
+                    <span class="table__primary">
+                      {{ lote.fecha_vencimiento|date:"d/m/Y" }}
+                    </span>
+                    {% if lote.fecha_vencimiento < hoy %}
+                      <span class="badge badge--warning">Vencido</span>
+                    {% elif lote.fecha_vencimiento <= limite_vencimiento %}
+                      <span class="badge badge--warning">Por vencer</span>
+                    {% endif %}
+                  {% else %}
+                    <span class="text-muted">Sin fecha</span>
+                  {% endif %}
+                </td>
+                <td class="text-muted">{{ lote.fecha_ingreso|date:"d/m/Y" }}</td>
+                <td>
+                  {% if lote.stock_actual > 0 %}
+                    <strong>{{ lote.stock_actual|floatformat:2 }}</strong>
+                  {% else %}
+                    <span class="badge badge--muted">Sin stock</span>
+                  {% endif %}
+                </td>
+                <td>
+                  {% if lote.activo %}
+                    <span class="badge badge--success">Activo</span>
+                  {% else %}
+                    <span class="badge badge--muted">Inactivo</span>
+                  {% endif %}
+                </td>
+                <td class="table__actions">
+                  <a
+                    class="btn btn--secondary btn--small"
+                    href="{% url 'inventario:lote_editar' lote.pk %}"
+                  >Editar</a>
+                  {% if lote.activo %}
+                    <a
+                      class="btn btn--secondary btn--small"
+                      href="{% url 'inventario:movimiento_crear' %}?lote={{ lote.pk }}"
+                    >Movimiento</a>
+                    {% if lote.stock_actual > 0 %}
+                      <button
+                        class="btn btn--secondary btn--small"
+                        type="button"
+                        disabled
+                        title="No puedes desactivar un lote con existencias."
+                      >Desactivar</button>
+                    {% else %}
+                      <form method="post" action="{% url 'inventario:lote_estado' lote.pk %}">
+                        {% csrf_token %}
+                        <button class="btn btn--danger btn--small" type="submit">
+                          Desactivar
+                        </button>
+                      </form>
+                    {% endif %}
+                  {% else %}
+                    <form method="post" action="{% url 'inventario:lote_estado' lote.pk %}">
+                      {% csrf_token %}
+                      <button class="btn btn--secondary btn--small" type="submit">
+                        Activar
+                      </button>
+                    </form>
+                  {% endif %}
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <div class="empty-state">
+        <span class="empty-state__icon" aria-hidden="true">LT</span>
+        {% if q or estado != "activos" or vencimiento != "todos" %}
+          <h3>No encontramos lotes</h3>
+          <p>Prueba con otro término de búsqueda o limpia los filtros.</p>
+          <p class="empty-state__actions">
+            <a class="btn btn--secondary" href="{% url 'inventario:lotes' %}">
+              Limpiar filtros
+            </a>
+          </p>
+        {% else %}
+          <h3>Aún no hay lotes registrados</h3>
+          <p>Registra el primer lote para comenzar a controlar existencias.</p>
+          <p class="empty-state__actions">
+            <a class="btn btn--primary" href="{% url 'inventario:lote_crear' %}">
+              Registrar primer lote
+            </a>
+          </p>
+        {% endif %}
+      </div>
+    {% endif %}
+
+    {% if is_paginated %}
+      <nav class="pagination" aria-label="Paginación de lotes">
+        <p class="pagination__summary">
+          Página {{ page_obj.number }} de {{ paginator.num_pages }}
+        </p>
+        <div class="pagination__links">
+          {% if page_obj.has_previous %}
+            <a
+              class="btn btn--secondary btn--small"
+              href="?{% if querystring %}{{ querystring }}&{% endif %}page={{ page_obj.previous_page_number }}"
+            >Anterior</a>
+          {% endif %}
+          {% if page_obj.has_next %}
+            <a
+              class="btn btn--secondary btn--small"
+              href="?{% if querystring %}{{ querystring }}&{% endif %}page={{ page_obj.next_page_number }}"
+            >Siguiente</a>
+          {% endif %}
+        </div>
+      </nav>
+    {% endif %}
+  </section>
+{% endblock %}

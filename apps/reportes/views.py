@@ -19,7 +19,7 @@ from django.db.models import (
     Q,
     Sum,
 )
-from django.db.models.functions import Coalesce, TruncDate
+from django.db.models.functions import TruncDate
 from django.utils import timezone
 from django.views.generic import TemplateView
 
@@ -29,6 +29,7 @@ from apps.catalogo.models import Producto
 from apps.compras.models import Compra, DetalleCompra, Proveedor
 from apps.core.mixins import RoleRequiredMixin
 from apps.inventario.models import Lote, MovimientoInventario
+from apps.inventario.selectors import productos_con_stock_bajo, stock_por_producto
 from apps.ventas.models import DetalleVenta, Venta
 
 User = get_user_model()
@@ -52,15 +53,6 @@ def _rango_desde_periodo(periodo: str) -> tuple[date, date]:
         return hoy - timedelta(days=90), hoy
     # "año" o cualquier otro valor
     return hoy.replace(month=1, day=1), hoy
-
-
-def _stock_por_producto():
-    """Expresión reutilizable con la suma de stock de los lotes activos."""
-    return Coalesce(
-        Sum("lotes__stock_actual", filter=Q(lotes__activo=True)),
-        Decimal("0.00"),
-        output_field=DecimalField(max_digits=12, decimal_places=2),
-    )
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -107,12 +99,7 @@ class ReportesIndexView(RoleRequiredMixin, TemplateView):
             compras_cantidad = datos_compras_mes["cantidad"] or 0
             gasto_mes = datos_compras_mes["monto"] or Decimal("0.00")
 
-            stock_bajo = (
-                Producto.objects.filter(activo=True)
-                .annotate(stock_total=_stock_por_producto())
-                .filter(stock_total__lte=F("stock_minimo"))
-                .count()
-            )
+            stock_bajo = productos_con_stock_bajo().count()
             lotes_activos = Lote.objects.filter(activo=True)
             lotes_por_vencer = lotes_activos.filter(
                 fecha_vencimiento__gte=hoy,
@@ -406,7 +393,7 @@ class ReporteInventarioView(RoleRequiredMixin, TemplateView):
         limite_vencimiento = hoy + timedelta(days=self.DIAS_POR_VENCER)
 
         # ── Catálogo con el stock sumado de sus lotes activos ─────────────────
-        productos_qs = Producto.objects.annotate(stock_total=_stock_por_producto())
+        productos_qs = Producto.objects.annotate(stock_total=stock_por_producto())
 
         if busqueda:
             productos_qs = productos_qs.filter(
@@ -481,11 +468,8 @@ class ReporteInventarioView(RoleRequiredMixin, TemplateView):
         total_vencidos = lotes_vencidos.count()
 
         # ── Productos con stock bajo ──────────────────────────────────────────
-        productos_stock_bajo = (
-            Producto.objects.filter(activo=True)
-            .annotate(stock_total=_stock_por_producto())
-            .filter(stock_total__lte=F("stock_minimo"))
-            .order_by("stock_total", "nombre")
+        productos_stock_bajo = productos_con_stock_bajo().order_by(
+            "stock_total", "nombre"
         )
         total_stock_bajo = productos_stock_bajo.count()
 

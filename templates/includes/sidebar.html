@@ -32,20 +32,20 @@
 
       <p class="nav__section">Operación</p>
       <a
-        class="nav__link{% if current == 'catalogo:index' %} is-active{% endif %}"
+        class="nav__link{% if current == 'catalogo:index' or current == 'catalogo:producto_crear' or current == 'catalogo:producto_editar' or current == 'catalogo:categorias' or current == 'catalogo:categoria_crear' or current == 'catalogo:categoria_editar' %} is-active{% endif %}"
         href="{% url 'catalogo:index' %}"
-        {% if current == 'catalogo:index' %}aria-current="page"{% endif %}
+        {% if current == 'catalogo:index' or current == 'catalogo:producto_crear' or current == 'catalogo:producto_editar' or current == 'catalogo:categorias' or current == 'catalogo:categoria_crear' or current == 'catalogo:categoria_editar' %}aria-current="page"{% endif %}
       >Catálogo</a>
       {% if user.is_superuser or user|has_group:"Administrador" %}
         <a
-          class="nav__link{% if current == 'inventario:index' %} is-active{% endif %}"
+          class="nav__link{% if current == 'inventario:index' or current == 'inventario:lotes' or current == 'inventario:lote_crear' or current == 'inventario:lote_editar' or current == 'inventario:movimientos' or current == 'inventario:movimiento_crear' %} is-active{% endif %}"
           href="{% url 'inventario:index' %}"
-          {% if current == 'inventario:index' %}aria-current="page"{% endif %}
+          {% if current == 'inventario:index' or current == 'inventario:lotes' or current == 'inventario:lote_crear' or current == 'inventario:lote_editar' or current == 'inventario:movimientos' or current == 'inventario:movimiento_crear' %}aria-current="page"{% endif %}
         >Inventario</a>
         <a
-          class="nav__link{% if current == 'compras:index' %} is-active{% endif %}"
+          class="nav__link{% if current == 'compras:index' or current == 'compras:compra_crear' or current == 'compras:compra_editar' or current == 'compras:compra_detalle' or current == 'compras:compra_recepcion' or current == 'compras:compra_anular' or current == 'compras:proveedores' or current == 'compras:proveedor_crear' or current == 'compras:proveedor_editar' or current == 'compras:proveedor_toggle' %} is-active{% endif %}"
           href="{% url 'compras:index' %}"
-          {% if current == 'compras:index' %}aria-current="page"{% endif %}
+          {% if current == 'compras:index' or current == 'compras:compra_crear' or current == 'compras:compra_editar' or current == 'compras:compra_detalle' or current == 'compras:compra_recepcion' or current == 'compras:compra_anular' or current == 'compras:proveedores' or current == 'compras:proveedor_crear' or current == 'compras:proveedor_editar' or current == 'compras:proveedor_toggle' %}aria-current="page"{% endif %}
         >Compras</a>
       {% endif %}
       <a

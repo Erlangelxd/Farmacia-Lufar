@@ -1,0 +1,122 @@
+{% extends "base.html" %}
+
+{% block title %}{{ form_title }} | Farmacia Lufar{% endblock %}
+
+{% block content %}
+  <div class="page-header">
+    <div>
+      <p class="eyebrow">Proveedores</p>
+      <h1>{{ form_title }}</h1>
+      <p class="page-header__text">{{ form_subtitle }}</p>
+    </div>
+    <a class="btn btn--secondary" href="{% url 'compras:proveedores' %}">
+      Volver a proveedores
+    </a>
+  </div>
+
+  <section class="card">
+    <form method="post" class="client-form" novalidate>
+      {% csrf_token %}
+
+      {% if form.non_field_errors %}
+        <div class="form-errors" role="alert">
+          {% for error in form.non_field_errors %}
+            <p>{{ error }}</p>
+          {% endfor %}
+        </div>
+      {% endif %}
+
+      <div class="form-grid">
+        <div class="form-field form-field--full">
+          <label for="{{ form.nombre.id_for_label }}">
+            {{ form.nombre.label }}
+            <span class="required-mark" aria-hidden="true">*</span>
+          </label>
+          {{ form.nombre }}
+          {% for error in form.nombre.errors %}
+            <p class="field-error">{{ error }}</p>
+          {% endfor %}
+          {% if form.nombre.help_text %}
+            <p class="field-help">{{ form.nombre.help_text }}</p>
+          {% endif %}
+        </div>
+
+        <div class="form-field">
+          <label for="{{ form.nit.id_for_label }}">{{ form.nit.label }}</label>
+          {{ form.nit }}
+          {% for error in form.nit.errors %}
+            <p class="field-error">{{ error }}</p>
+          {% endfor %}
+          {% if form.nit.help_text %}
+            <p class="field-help">{{ form.nit.help_text }}</p>
+          {% endif %}
+        </div>
+
+        <div class="form-field">
+          <label for="{{ form.telefono.id_for_label }}">
+            {{ form.telefono.label }}
+          </label>
+          {{ form.telefono }}
+          {% for error in form.telefono.errors %}
+            <p class="field-error">{{ error }}</p>
+          {% endfor %}
+        </div>
+
+        <div class="form-field">
+          <label for="{{ form.email.id_for_label }}">
+            {{ form.email.label }}
+          </label>
+          {{ form.email }}
+          {% for error in form.email.errors %}
+            <p class="field-error">{{ error }}</p>
+          {% endfor %}
+          {% if form.email.help_text %}
+            <p class="field-help">{{ form.email.help_text }}</p>
+          {% endif %}
+        </div>
+
+        <div class="form-field">
+          <label for="{{ form.contacto.id_for_label }}">
+            {{ form.contacto.label }}
+          </label>
+          {{ form.contacto }}
+          {% for error in form.contacto.errors %}
+            <p class="field-error">{{ error }}</p>
+          {% endfor %}
+        </div>
+
+        <div class="form-field form-field--full">
+          <label for="{{ form.direccion.id_for_label }}">
+            {{ form.direccion.label }}
+          </label>
+          {{ form.direccion }}
+          {% for error in form.direccion.errors %}
+            <p class="field-error">{{ error }}</p>
+          {% endfor %}
+        </div>
+
+        <div class="form-field form-field--full checkbox-field">
+          <label for="{{ form.activo.id_for_label }}">
+            {{ form.activo }}
+            <span>{{ form.activo.label }}</span>
+          </label>
+          {% for error in form.activo.errors %}
+            <p class="field-error">{{ error }}</p>
+          {% endfor %}
+          {% if form.activo.help_text %}
+            <p class="field-help">{{ form.activo.help_text }}</p>
+          {% endif %}
+        </div>
+      </div>
+
+      <div class="form-actions">
+        <button class="btn btn--primary" type="submit">
+          {{ submit_label }}
+        </button>
+        <a class="btn btn--secondary" href="{% url 'compras:proveedores' %}">
+          Cancelar
+        </a>
+      </div>
+    </form>
+  </section>
+{% endblock %}

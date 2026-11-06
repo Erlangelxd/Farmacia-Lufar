@@ -6,6 +6,27 @@ Todos los cambios relevantes del proyecto se documentan en este archivo.
 
 ### Agregado
 
+- Módulo de compras completo: proveedores con alta, edición, activación y
+  desactivación por POST; compras con líneas de detalle, edición y anulación de
+  borradores; y recepción sobre lotes existentes que registra entradas de
+  inventario.
+- Servicios transaccionales `registrar_compra()`, `actualizar_compra()`,
+  `recibir_compra()` y `anular_compra()` en `apps/compras/services.py`, con
+  totales calculados en el servidor y recepción atómica mediante
+  `apps.inventario.services.registrar_movimiento()`.
+- Formularios `ProveedorForm`, `CompraForm`, `DetalleCompraFormSet` y
+  `RecepcionCompraForm`, con validación de NIT único, lotes del mismo producto y
+  lotes no repetidos.
+- Vistas, rutas y plantillas de compras y proveedores, con listados, filtros,
+  ficha de consulta, recepción y anulación de borradores.
+- JavaScript `static/js/compras.js` para la vista previa de subtotales y total.
+- Admin de compras endurecido: proveedores y compras sin eliminación, compras
+  recibidas o anuladas de solo lectura, detalles de solo lectura y recálculo de
+  totales al guardar.
+- Pruebas del modelo, formularios, servicios y vistas de compras, incluidos
+  permisos de rol y atomicidad de la recepción.
+- ADR-009 con la decisión de recibir compras sobre lotes existentes.
+
 - Esquema completo de base de datos en SQLite (sin `codigo_barras` en
   `Producto`): catálogos de categoría, laboratorio, forma farmacéutica y
   presentación; proveedores, compras y detalle de compra; lotes y movimientos
@@ -44,6 +65,41 @@ Todos los cambios relevantes del proyecto se documentan en este archivo.
   CSRF y la paginación.
 - Catálogo mínimo con modelo `Producto`, migración inicial, administración en
   Django Admin y pruebas de normalización, unicidad y precio.
+- CRUD visual de productos en `/catalogo/`: listado con búsqueda por código,
+  nombre, principio activo o categoría, filtros por categoría y estado,
+  paginación, tarjetas de resumen, alta, edición y activación/desactivación por
+  POST.
+- CRUD visual de categorías en `/catalogo/categorias/`: listado con búsqueda,
+  filtro por estado, conteo de productos totales y activos, alta, edición y
+  activación/desactivación por POST.
+- Formularios de catálogo con normalización de código y nombre, validación de
+  unicidad sin distinguir mayúsculas y filtrado de categorías y laboratorios
+  activos.
+- Guarda que impide desactivar una categoría mientras tenga productos activos,
+  aplicada en el modelo y en la vista.
+- Pruebas del catálogo: modelo de categoría, formularios, listados, filtros,
+  operaciones de escritura y acceso de consulta del Vendedor.
+- ADR-007 con las decisiones del catálogo visual de productos y categorías.
+- Módulo de inventario con existencias por producto, alertas de stock bajo,
+  sin stock y vencimientos, y tarjetas de resumen.
+- CRUD visual de lotes en `/inventario/lotes/`: alta con stock inicial, edición
+  de datos sin tocar existencias, búsqueda, filtros por estado y vencimiento, y
+  activación/desactivación por POST.
+- Historial de movimientos en `/inventario/movimientos/` con búsqueda, filtro
+  por tipo y registro manual de entradas, salidas y ajustes.
+- Servicios transaccionales `crear_lote()` y `registrar_movimiento()`: bloqueo
+  del lote, validación de stock suficiente, actualización de
+  `Lote.stock_actual` y creación de `MovimientoInventario` en la misma
+  transacción.
+- Selectores `stock_por_producto()` y `productos_con_stock_bajo()` en
+  `apps/inventario/selectors.py`, reutilizados por reportes.
+- Normalización del código de lote, unicidad por producto sin distinguir
+  mayúsculas, validación de fechas y bloqueo de desactivación de lotes con
+  existencias.
+- Pruebas de inventario: modelos, servicios, formularios, filtros, CRUD,
+  movimientos, alertas y acceso por rol.
+- ADR-008 con las decisiones de inventario por lotes y movimientos
+  transaccionales.
 - Módulo de ventas con modelos `Venta` y `DetalleVenta`, migración inicial,
   servicio transaccional de registro, formulario con formset, listado con
   búsqueda y filtro por cliente, ficha de consulta y ticket imprimible de
@@ -68,12 +124,29 @@ Todos los cambios relevantes del proyecto se documentan en este archivo.
 - El menú lateral marca activo el módulo de clientes también en las vistas de
   registro y detalle, y el módulo de ventas en listado, registro, detalle y
   ticket.
-- La página de alcance de `catalogo` ahora indica que el modelo `Producto` se
-  administra desde Django Admin.
+- La ruta `catalogo:index` dejó de ser un placeholder y ahora muestra el
+  listado real de productos; se agregaron las rutas de productos y categorías
+  bajo el namespace `catalogo`.
+- El menú lateral marca activo el módulo de catálogo también en las vistas de
+  productos y categorías.
+- La ruta `inventario:index` dejó de ser un placeholder y ahora muestra las
+  existencias reales; se agregaron `inventario:lotes`, `inventario:lote_crear`,
+  `inventario:lote_editar`, `inventario:lote_estado`,
+  `inventario:movimientos` y `inventario:movimiento_crear`.
+- El menú lateral marca activo el módulo de inventario en sus listados,
+  formularios y movimientos.
+- El admin de lotes muestra el stock como campo de solo lectura y no permite
+  eliminar lotes; el stock solo cambia por movimientos.
+- Los reportes reutilizan los selectores de inventario para calcular existencias
+  y alertas de stock bajo.
+- La documentación de arquitectura y el README reflejan el estado del módulo de
+  inventario.
+- El catálogo pasó de administrarse solo desde Django Admin a tener CRUD visual
+  para productos y categorías; los catálogos auxiliares siguen en admin.
 - La ficha del cliente reemplazó el aviso de historial pendiente por el
   historial real de ventas.
 - La documentación de arquitectura y el README reflejan el estado de ventas y
-  del catálogo mínimo.
+  del catálogo visual de productos y categorías.
 - El formulario de login fue rediseñado con estilos locales y fondo SVG, sin
   dependencias de CDN ni imágenes externas.
 - El reporte de compras dejó de ser un placeholder y ahora consulta

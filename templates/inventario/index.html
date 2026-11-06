@@ -1,0 +1,241 @@
+{% extends "base.html" %}
+
+{% block title %}Inventario | Farmacia Lufar{% endblock %}
+
+{% block content %}
+  <div class="page-header">
+    <div>
+      <p class="eyebrow">Operación</p>
+      <h1>Inventario</h1>
+      <p class="page-header__text">
+        Existencias por producto, lotes registrados y alertas de reposición.
+      </p>
+    </div>
+    <div class="page-header__actions">
+      <a class="btn btn--secondary" href="{% url 'inventario:movimientos' %}">
+        Movimientos
+      </a>
+      <a class="btn btn--secondary" href="{% url 'inventario:lotes' %}">
+        Lotes
+      </a>
+      <a class="btn btn--primary" href="{% url 'inventario:lote_crear' %}">
+        Nuevo lote
+      </a>
+    </div>
+  </div>
+
+  <div class="stat-grid stat-grid--compact">
+    <article class="stat-card stat-card--green">
+      <span class="stat-card__label">Productos activos</span>
+      <p class="stat-card__value">{{ total_activos }}</p>
+      <p class="stat-card__detail">De {{ total_productos }} en catálogo</p>
+    </article>
+    <article class="stat-card stat-card--teal">
+      <span class="stat-card__label">Lotes activos</span>
+      <p class="stat-card__value">{{ total_lotes }}</p>
+      <p class="stat-card__detail">Con trazabilidad de existencias</p>
+    </article>
+    <article class="stat-card stat-card--blue">
+      <span class="stat-card__label">Unidades en stock</span>
+      <p class="stat-card__value">{{ stock_unidades|floatformat:2 }}</p>
+      <p class="stat-card__detail">Suma de lotes activos</p>
+    </article>
+    <article class="stat-card stat-card--amber">
+      <span class="stat-card__label">Stock bajo</span>
+      <p class="stat-card__value">{{ total_stock_bajo }}</p>
+      <p class="stat-card__detail">Productos en o bajo el mínimo</p>
+    </article>
+  </div>
+
+  {% if total_vencidos %}
+    <div class="notice notice--warning" role="note">
+      Hay {{ total_vencidos }} lote{{ total_vencidos|pluralize }} vencido{{ total_vencidos|pluralize }}
+      con existencias.
+      <a href="{% url 'inventario:lotes' %}?vencimiento=vencidos">Revisar lotes vencidos</a>.
+    </div>
+  {% elif total_por_vencer %}
+    <div class="notice" role="note">
+      Hay {{ total_por_vencer }} lote{{ total_por_vencer|pluralize }} que
+      vence{{ total_por_vencer|pluralize }} en los próximos
+      {{ dias_por_vencer }} días.
+      <a href="{% url 'inventario:lotes' %}?vencimiento=por_vencer">Revisar vencimientos</a>.
+    </div>
+  {% endif %}
+
+  <section class="card">
+    <form method="get" class="filter-form filter-form--catalog">
+      <div class="form-field">
+        <label for="q">Buscar</label>
+        <input
+          class="form-control"
+          type="search"
+          id="q"
+          name="q"
+          value="{{ q }}"
+          placeholder="Código, nombre o principio activo"
+        >
+      </div>
+      <div class="form-field">
+        <label for="estado">Estado</label>
+        <select class="form-control" id="estado" name="estado">
+          <option value="activos"{% if estado == "activos" %} selected{% endif %}>
+            Activos
+          </option>
+          <option value="inactivos"{% if estado == "inactivos" %} selected{% endif %}>
+            Inactivos
+          </option>
+          <option value="todos"{% if estado == "todos" %} selected{% endif %}>
+            Todos
+          </option>
+        </select>
+      </div>
+      <div class="form-field">
+        <label for="alerta">Alerta</label>
+        <select class="form-control" id="alerta" name="alerta">
+          <option value="todas"{% if alerta == "todas" %} selected{% endif %}>
+            Todas
+          </option>
+          <option value="bajo"{% if alerta == "bajo" %} selected{% endif %}>
+            Stock bajo
+          </option>
+          <option value="sin_stock"{% if alerta == "sin_stock" %} selected{% endif %}>
+            Sin stock
+          </option>
+          <option value="por_vencer"{% if alerta == "por_vencer" %} selected{% endif %}>
+            Por vencer
+          </option>
+          <option value="vencido"{% if alerta == "vencido" %} selected{% endif %}>
+            Vencido
+          </option>
+        </select>
+      </div>
+      <div class="filter-form__actions">
+        <button class="btn btn--primary" type="submit">Buscar</button>
+        {% if q or estado != "activos" or alerta != "todas" %}
+          <a class="btn btn--secondary" href="{% url 'inventario:index' %}">
+            Limpiar
+          </a>
+        {% endif %}
+      </div>
+    </form>
+  </section>
+
+  <section class="card">
+    <div class="card__header">
+      <div>
+        <p class="eyebrow">Existencias</p>
+        <h2>Stock por producto</h2>
+        <p class="card__hint">
+          {% if paginator.count %}
+            {{ paginator.count }} resultado{{ paginator.count|pluralize }}
+          {% else %}
+            Sin resultados
+          {% endif %}
+        </p>
+      </div>
+      {% if q or estado != "activos" or alerta != "todas" %}
+        <span class="badge badge--soft">Filtro aplicado</span>
+      {% endif %}
+    </div>
+
+    {% if productos %}
+      <div class="table-wrap">
+        <table class="table">
+          <thead>
+            <tr>
+              <th scope="col">Producto</th>
+              <th scope="col">Categoría</th>
+              <th scope="col">Lotes</th>
+              <th scope="col">Stock total</th>
+              <th scope="col">Mínimo</th>
+              <th scope="col">Estado</th>
+              <th scope="col"><span class="sr-only">Acciones</span></th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for producto in productos %}
+              <tr>
+                <td>
+                  <span class="table__primary">{{ producto.nombre }}</span>
+                  <span class="table__secondary">{{ producto.codigo }}</span>
+                </td>
+                <td>{{ producto.categoria.nombre }}</td>
+                <td>{{ producto.total_lotes }}</td>
+                <td>
+                  <strong>{{ producto.stock_total|floatformat:2 }}</strong>
+                  <span class="table__secondary">
+                    {{ producto.unidad_medida|lower }}
+                  </span>
+                </td>
+                <td>{{ producto.stock_minimo }}</td>
+                <td>
+                  {% if not producto.activo %}
+                    <span class="badge badge--muted">Inactivo</span>
+                  {% elif producto.stock_total == 0 %}
+                    <span class="badge badge--warning">Sin stock</span>
+                  {% elif producto.stock_total <= producto.stock_minimo %}
+                    <span class="badge badge--warning">Bajo mínimo</span>
+                  {% else %}
+                    <span class="badge badge--success">Disponible</span>
+                  {% endif %}
+                </td>
+                <td class="table__actions">
+                  <a
+                    class="btn btn--secondary btn--small"
+                    href="{% url 'inventario:lotes' %}?q={{ producto.codigo|urlencode }}"
+                  >Ver lotes</a>
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <div class="empty-state">
+        <span class="empty-state__icon" aria-hidden="true">IN</span>
+        {% if q or estado != "activos" or alerta != "todas" %}
+          <h3>No encontramos productos</h3>
+          <p>Prueba con otro término de búsqueda o limpia los filtros.</p>
+          <p class="empty-state__actions">
+            <a class="btn btn--secondary" href="{% url 'inventario:index' %}">
+              Limpiar filtros
+            </a>
+          </p>
+        {% else %}
+          <h3>Aún no hay productos con stock</h3>
+          <p>
+            Registra un lote para comenzar a controlar las existencias del
+            inventario.
+          </p>
+          <p class="empty-state__actions">
+            <a class="btn btn--primary" href="{% url 'inventario:lote_crear' %}">
+              Registrar primer lote
+            </a>
+          </p>
+        {% endif %}
+      </div>
+    {% endif %}
+
+    {% if is_paginated %}
+      <nav class="pagination" aria-label="Paginación de existencias">
+        <p class="pagination__summary">
+          Página {{ page_obj.number }} de {{ paginator.num_pages }}
+        </p>
+        <div class="pagination__links">
+          {% if page_obj.has_previous %}
+            <a
+              class="btn btn--secondary btn--small"
+              href="?{% if querystring %}{{ querystring }}&{% endif %}page={{ page_obj.previous_page_number }}"
+            >Anterior</a>
+          {% endif %}
+          {% if page_obj.has_next %}
+            <a
+              class="btn btn--secondary btn--small"
+              href="?{% if querystring %}{{ querystring }}&{% endif %}page={{ page_obj.next_page_number }}"
+            >Siguiente</a>
+          {% endif %}
+        </div>
+      </nav>
+    {% endif %}
+  </section>
+{% endblock %}

@@ -39,6 +39,32 @@ class Categoria(models.Model):
     def __str__(self) -> str:
         return self.nombre
 
+    def clean(self):
+        """Evita nombres duplicados y desactivar categorías en uso."""
+        super().clean()
+        self.nombre = " ".join((self.nombre or "").split())
+
+        if self.nombre and Categoria.objects.filter(
+            nombre__iexact=self.nombre
+        ).exclude(pk=self.pk).exists():
+            raise ValidationError(
+                {"nombre": "Ya existe una categoría con ese nombre."}
+            )
+
+        if (
+            self.pk
+            and not self.activo
+            and self.productos.filter(activo=True).exists()
+        ):
+            raise ValidationError(
+                {
+                    "activo": (
+                        "No puedes desactivar una categoría que tiene "
+                        "productos activos."
+                    )
+                }
+            )
+
     def save(self, *args, **kwargs):
         self.nombre = " ".join((self.nombre or "").split())
         super().save(*args, **kwargs)

@@ -60,8 +60,18 @@ class InitialStructureTests(TestCase):
             "accounts:logout",
             "accounts:usuarios",
             "catalogo:index",
+            "catalogo:producto_crear",
+            "catalogo:categorias",
+            "catalogo:categoria_crear",
             "inventario:index",
+            "inventario:lotes",
+            "inventario:lote_crear",
+            "inventario:movimientos",
+            "inventario:movimiento_crear",
             "compras:index",
+            "compras:proveedores",
+            "compras:proveedor_crear",
+            "compras:compra_crear",
             "clientes:index",
             "clientes:crear",
             "ventas:index",
@@ -74,6 +84,23 @@ class InitialStructureTests(TestCase):
 
         self.assertTrue(reverse("ventas:detalle", args=[1]).startswith("/"))
         self.assertTrue(reverse("ventas:ticket", args=[1]).startswith("/"))
+        self.assertTrue(
+            reverse("inventario:lote_editar", args=[1]).startswith("/")
+        )
+        self.assertTrue(
+            reverse("inventario:lote_estado", args=[1]).startswith("/")
+        )
+        compras_arg_routes = (
+            "compras:compra_detalle",
+            "compras:compra_editar",
+            "compras:compra_recepcion",
+            "compras:compra_anular",
+            "compras:proveedor_editar",
+            "compras:proveedor_toggle",
+        )
+        for name in compras_arg_routes:
+            with self.subTest(route=name):
+                self.assertTrue(reverse(name, args=[1]).startswith("/"))
 
     def test_default_groups_exist(self):
         existing_groups = set(
@@ -90,8 +117,18 @@ class InitialStructureTests(TestCase):
             "accounts:index",
             "accounts:usuarios",
             "catalogo:index",
+            "catalogo:producto_crear",
+            "catalogo:categorias",
+            "catalogo:categoria_crear",
             "inventario:index",
+            "inventario:lotes",
+            "inventario:lote_crear",
+            "inventario:movimientos",
+            "inventario:movimiento_crear",
             "compras:index",
+            "compras:proveedores",
+            "compras:proveedor_crear",
+            "compras:compra_crear",
             "clientes:index",
             "clientes:crear",
             "ventas:index",
@@ -135,11 +172,28 @@ class InitialStructureTests(TestCase):
 
         catalogo_response = self.client.get(reverse("catalogo:index"))
         self.assertEqual(catalogo_response.status_code, 200)
-        self.assertTemplateUsed(catalogo_response, "core/placeholder.html")
-        self.assertContains(catalogo_response, "Catálogo")
+        self.assertTemplateUsed(
+            catalogo_response,
+            "catalogo/producto_list.html",
+        )
+        self.assertContains(catalogo_response, "Catálogo de productos")
+        self.assertContains(catalogo_response, "Categorías")
+
+        categorias_response = self.client.get(reverse("catalogo:categorias"))
+        self.assertEqual(categorias_response.status_code, 200)
+        self.assertTemplateUsed(
+            categorias_response,
+            "catalogo/categoria_list.html",
+        )
 
         # Inventario y compras son exclusivos del rol Administrador.
-        for name in ("inventario:index", "compras:index"):
+        for name in (
+            "inventario:index",
+            "compras:index",
+            "compras:proveedores",
+            "compras:proveedor_crear",
+            "compras:compra_crear",
+        ):
             with self.subTest(route=name):
                 forbidden = self.client.get(reverse(name))
                 self.assertEqual(forbidden.status_code, 403)
@@ -203,7 +257,14 @@ class InitialStructureTests(TestCase):
         for name in (
             "catalogo:index",
             "inventario:index",
+            "inventario:lotes",
+            "inventario:lote_crear",
+            "inventario:movimientos",
+            "inventario:movimiento_crear",
             "compras:index",
+            "compras:proveedores",
+            "compras:proveedor_crear",
+            "compras:compra_crear",
             "clientes:index",
             "ventas:index",
             "reportes:index",

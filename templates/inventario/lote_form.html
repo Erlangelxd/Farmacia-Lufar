@@ -1,0 +1,155 @@
+{% extends "base.html" %}
+
+{% block title %}{{ form_title }} | Farmacia Lufar{% endblock %}
+
+{% block content %}
+  <div class="page-header">
+    <div>
+      <p class="eyebrow">
+        <a href="{% url 'inventario:index' %}">Inventario</a> /
+        <a href="{% url 'inventario:lotes' %}">Lotes</a>
+      </p>
+      <h1>{{ form_title }}</h1>
+      <p class="page-header__text">{{ form_subtitle }}</p>
+    </div>
+    <a class="btn btn--secondary" href="{% url 'inventario:lotes' %}">
+      Volver a lotes
+    </a>
+  </div>
+
+  {% if not es_creacion %}
+    <div class="notice" role="note">
+      Stock actual del lote:
+      <strong>{{ object.stock_actual|floatformat:2 }}</strong> unidades.
+      Para modificarlo,
+      <a href="{% url 'inventario:movimiento_crear' %}?lote={{ object.pk }}">
+        registra un movimiento
+      </a>.
+    </div>
+  {% endif %}
+
+  <section class="card">
+    <form method="post" class="client-form" novalidate>
+      {% csrf_token %}
+
+      {% if form.non_field_errors %}
+        <div class="form-errors" role="alert">
+          {% for error in form.non_field_errors %}
+            <p>{{ error }}</p>
+          {% endfor %}
+        </div>
+      {% endif %}
+
+      <div class="form-grid">
+        <div class="form-field">
+          <label for="{{ form.producto.id_for_label }}">
+            {{ form.producto.label }}
+            <span class="required-mark" aria-hidden="true">*</span>
+          </label>
+          {{ form.producto }}
+          {% for error in form.producto.errors %}
+            <p class="field-error">{{ error }}</p>
+          {% endfor %}
+          {% if form.producto.help_text %}
+            <p class="field-help">{{ form.producto.help_text }}</p>
+          {% endif %}
+        </div>
+
+        <div class="form-field">
+          <label for="{{ form.codigo_lote.id_for_label }}">
+            {{ form.codigo_lote.label }}
+            <span class="required-mark" aria-hidden="true">*</span>
+          </label>
+          {{ form.codigo_lote }}
+          {% for error in form.codigo_lote.errors %}
+            <p class="field-error">{{ error }}</p>
+          {% endfor %}
+          {% if form.codigo_lote.help_text %}
+            <p class="field-help">{{ form.codigo_lote.help_text }}</p>
+          {% endif %}
+        </div>
+
+        <div class="form-field">
+          <label for="{{ form.fecha_fabricacion.id_for_label }}">
+            {{ form.fecha_fabricacion.label }}
+          </label>
+          {{ form.fecha_fabricacion }}
+          {% for error in form.fecha_fabricacion.errors %}
+            <p class="field-error">{{ error }}</p>
+          {% endfor %}
+          {% if form.fecha_fabricacion.help_text %}
+            <p class="field-help">{{ form.fecha_fabricacion.help_text }}</p>
+          {% endif %}
+        </div>
+
+        <div class="form-field">
+          <label for="{{ form.fecha_vencimiento.id_for_label }}">
+            {{ form.fecha_vencimiento.label }}
+          </label>
+          {{ form.fecha_vencimiento }}
+          {% for error in form.fecha_vencimiento.errors %}
+            <p class="field-error">{{ error }}</p>
+          {% endfor %}
+          {% if form.fecha_vencimiento.help_text %}
+            <p class="field-help">{{ form.fecha_vencimiento.help_text }}</p>
+          {% endif %}
+        </div>
+
+        <div class="form-field">
+          <label for="{{ form.fecha_ingreso.id_for_label }}">
+            {{ form.fecha_ingreso.label }}
+            <span class="required-mark" aria-hidden="true">*</span>
+          </label>
+          {{ form.fecha_ingreso }}
+          {% for error in form.fecha_ingreso.errors %}
+            <p class="field-error">{{ error }}</p>
+          {% endfor %}
+          {% if form.fecha_ingreso.help_text %}
+            <p class="field-help">{{ form.fecha_ingreso.help_text }}</p>
+          {% endif %}
+        </div>
+
+        {% if es_creacion %}
+          <div class="form-field">
+            <label for="{{ form.stock_inicial.id_for_label }}">
+              {{ form.stock_inicial.label }}
+            </label>
+            {{ form.stock_inicial }}
+            {% for error in form.stock_inicial.errors %}
+              <p class="field-error">{{ error }}</p>
+            {% endfor %}
+            {% if form.stock_inicial.help_text %}
+              <p class="field-help">{{ form.stock_inicial.help_text }}</p>
+            {% endif %}
+          </div>
+        {% endif %}
+
+        <div class="form-field form-field--checkbox">
+          <label class="checkbox-field" for="{{ form.activo.id_for_label }}">
+            {{ form.activo }}
+            <span>{{ form.activo.label }}</span>
+          </label>
+          {% for error in form.activo.errors %}
+            <p class="field-error">{{ error }}</p>
+          {% endfor %}
+          {% if form.activo.help_text %}
+            <p class="field-help">{{ form.activo.help_text }}</p>
+          {% endif %}
+        </div>
+      </div>
+
+      <p class="form-note">
+        Los campos con <span class="required-mark">*</span> son obligatorios.
+        El stock solo se puede indicar al crear el lote; después cambia
+        únicamente mediante movimientos.
+      </p>
+
+      <div class="form-actions">
+        <button class="btn btn--primary" type="submit">{{ submit_label }}</button>
+        <a class="btn btn--secondary" href="{% url 'inventario:lotes' %}">
+          Cancelar
+        </a>
+      </div>
+    </form>
+  </section>
+{% endblock %}

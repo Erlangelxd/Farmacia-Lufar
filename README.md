@@ -5,11 +5,13 @@ proveedores, ventas, usuarios y reportes de Farmacia Lufar. Está construido con
 Python, Django, SQLite y plantillas renderizadas en el servidor.
 
 > **Estado actual:** estructura base funcional con autenticación, gestión de
-> usuarios y roles, navegación, dashboard provisional, módulo de clientes con
-> registro y consulta, módulo de ventas con catálogo mínimo de productos,
-> cálculo de totales y ticket imprimible, reportes de solo lectura y esquema de
-> datos completo. **No incluye todavía CRUD visual de catálogo, compras,
-> movimientos de inventario ni edición o anulación de ventas.**
+> usuarios y roles, navegación, dashboard provisional, módulo de catálogo con
+> productos y categorías, módulo de inventario con lotes, movimientos y alertas
+> de stock, módulo de clientes con registro y consulta, módulo de ventas con
+> cálculo de totales y ticket imprimible, módulo de compras con proveedores y
+> recepción que actualiza inventario, reportes de solo lectura y esquema de
+> datos completo. **No incluye todavía integración automática de stock con
+> ventas ni edición o anulación de ventas.**
 
 ## 1. Objetivo y alcance inicial
 
@@ -34,28 +36,36 @@ autenticación, la navegación ni la organización del proyecto.
 - Dashboard con indicadores de ejemplo marcados como **provisionales**.
 - Módulo de clientes: registro, listado con búsqueda y filtro por estado,
   ficha de consulta, historial de ventas y administración desde Django Admin.
-- Catálogo administrado desde Django Admin: `Categoria`, `Laboratorio`,
-  `FormaFarmaceutica`, `Presentacion` y `Producto` (código, nombre, precio de
-  venta, stock mínimo y estado).
+- Módulo de catálogo: productos (código, nombre, precio de venta, stock mínimo
+  y estado) y categorías, con alta, edición, búsqueda, filtros y
+  activación/desactivación.
+- Catálogos auxiliares de `Laboratorio`, `FormaFarmaceutica` y `Presentacion`
+  administrados desde Django Admin.
+- Módulo de inventario: existencias por producto, lotes con vencimiento, alta
+  con stock inicial, edición de datos, movimientos de entrada, salida y ajuste,
+  y alertas de stock bajo y vencimientos.
 - Módulo de ventas: registro con líneas de detalle, cálculo de total y cambio,
   listado con búsqueda y filtro por cliente, ficha de consulta y ticket
   imprimible de 80 mm.
+- Módulo de compras: proveedores con alta, edición y activación, compras con
+  líneas de detalle, edición y anulación de borradores, y recepción sobre lotes
+  existentes que registra entradas de inventario.
 - Módulo de reportes de solo lectura: ventas por periodo y vendedor, compras
   por proveedor y estado, e inventario con stock por lote, valor del
   inventario, alertas de stock bajo y vencimientos.
-- Rutas y páginas de alcance para catálogo visual, inventario y compras.
 - Estilos y JavaScript locales, sin CDN.
-- Pruebas transversales y pruebas propias de clientes, catálogo y ventas.
+- Pruebas transversales y pruebas propias de clientes, catálogo, inventario,
+  compras y ventas.
 - Documentación de arquitectura y decisiones en `docs/`.
 
 ### Fuera de alcance en esta entrega
 
-- CRUD visual de catálogo, proveedores, compras, inventario y reportes.
 - Edición, eliminación o anulación de ventas.
 - Edición y eliminación de clientes; su historial comercial ya se muestra en la
   ficha.
-- Movimientos reales de inventario y descuento de stock al vender.
-- Facturación fiscal, impuestos, descuentos y reglas comerciales avanzadas.
+- Integración automática del stock con ventas; la recepción de compras ya
+  actualiza inventario.
+- Facturación fiscal, descuentos y reglas comerciales avanzadas.
 - Recuperación de contraseña por correo.
 - Despliegue en producción, HTTPS y backups automáticos.
 - Aplicación móvil o API REST independiente.
@@ -70,9 +80,9 @@ API REST separada, React ni servicios en la nube.
 |---|---|---|
 | `core` | Dashboard, mixins, filtros y utilidades compartidas. | Base implementada |
 | `accounts` | Login, logout, perfil, usuarios, roles, permisos por modelo y autorización por rol. | Implementado |
-| `catalogo` | Productos, categorías, laboratorios, formas farmacéuticas, presentaciones y precios. | Modelos y admin implementados; CRUD visual pendiente |
-| `inventario` | Existencias, lotes y movimientos de entrada, salida y ajuste. | Modelos `Lote` y `MovimientoInventario`; servicios y vistas pendientes |
-| `compras` | Proveedores, compras, detalle y recepción de mercadería. | Modelos `Proveedor`, `Compra` y `DetalleCompra`; vistas pendientes |
+| `catalogo` | Productos, categorías, laboratorios, formas farmacéuticas, presentaciones y precios. | CRUD visual de productos y categorías implementado; catálogos auxiliares en admin |
+| `inventario` | Existencias, lotes y movimientos de entrada, salida y ajuste. | Existencias, CRUD de lotes, movimientos y alertas implementados |
+| `compras` | Proveedores, compras, detalle y recepción de mercadería. | Proveedores, borradores, recepción y anulación implementados |
 | `clientes` | Datos de clientes e historial comercial. | Registro, consulta e historial implementados |
 | `ventas` | Ventas, detalles, cálculo de totales, cambio y ticket. | Registro, consulta y ticket implementados |
 | `reportes` | Consultas e informes de solo lectura. | Reportes de ventas, compras e inventario implementados |
@@ -97,11 +107,20 @@ Decisiones importantes:
 - **Clientes no guarda correo ni dirección en esta etapa.** El documento es
   opcional; si se registra, el tipo y el número deben ingresarse juntos y el
   número es único por tipo.
-- **Inventario será el único dueño de las existencias.** Compras y ventas
-  deberán registrar sus movimientos mediante servicios transaccionales.
-- **El catálogo se administra desde Django Admin.** `Producto` pertenece a una
-  categoría y puede referenciar laboratorio, forma farmacéutica y presentación;
-  el CRUD visual del catálogo se implementará después.
+- **Inventario es el único dueño de las existencias.** Los cambios de stock se
+  realizan con los servicios transaccionales de `apps/inventario/services.py`,
+  que actualizan el lote y registran un movimiento inmutable. Compras y ventas
+  deberán usar esos mismos servicios para no alterar el stock directamente.
+- **El catálogo tiene CRUD visual para productos y categorías.** `Producto`
+  pertenece a una categoría y puede referenciar laboratorio, forma farmacéutica
+  y presentación. El Vendedor solo consulta; el Administrador crea, edita y
+  desactiva. Una categoría con productos activos no puede desactivarse. Los
+  catálogos auxiliares se administran desde Django Admin.
+- **El inventario se organiza por lotes.** El stock inicial se registra al
+  crear el lote; después solo cambia con movimientos de entrada, salida o
+  ajuste. Un lote con existencias no puede desactivarse y los movimientos no se
+  editan ni eliminan. Las alertas de stock bajo comparan el total de lotes
+  activos con el `stock_minimo` del producto.
 - **Las ventas son inmutables en esta etapa.** No se editan, eliminan ni anulan
   desde la interfaz. El admin de ventas es de solo lectura para proteger los
   registros financieros.
@@ -274,6 +293,11 @@ Las 143 pruebas actuales cubren:
   consulta e historial de ventas.
 - Validación del modelo `Producto`: normalización de código y nombre, unicidad
   sin distinguir mayúsculas, precio no negativo y orden por nombre.
+- Validación del modelo `Categoria`: normalización y unicidad sin distinguir
+  mayúsculas, y bloqueo al desactivar una categoría con productos activos.
+- Formularios y vistas de catálogo: alta y edición de productos y categorías,
+  búsqueda, filtros por categoría y estado, activación/desactivación y acceso
+  de consulta del Vendedor.
 - Servicio transaccional de ventas: cálculo de total y cambio, copia histórica
   de producto, cliente opcional, producto inactivo, cantidades inválidas,
   productos duplicados, efectivo insuficiente, total máximo y rollback.
@@ -304,9 +328,31 @@ Abre `http://127.0.0.1:8000/` en el navegador. Para detener el servidor usa
 | `/cuentas/usuarios/nuevo/` | Alta de usuario con rol y contraseña inicial. |
 | `/cuentas/usuarios/<id>/editar/` | Edición de datos, rol, estado y contraseña. |
 | `/cuentas/usuarios/<id>/estado/` | Activación o desactivación por POST. |
-| `/catalogo/` | Página inicial del catálogo; el CRUD visual está pendiente. |
-| `/inventario/` | Página inicial de inventario. |
-| `/compras/` | Página inicial de compras. |
+| `/catalogo/` | Listado y filtros de productos. |
+| `/catalogo/productos/nuevo/` | Alta de producto; solo Administrador. |
+| `/catalogo/productos/<id>/editar/` | Edición de producto; solo Administrador. |
+| `/catalogo/productos/<id>/estado/` | Activación o desactivación de producto por POST. |
+| `/catalogo/categorias/` | Listado de categorías y sus productos. |
+| `/catalogo/categorias/nueva/` | Alta de categoría; solo Administrador. |
+| `/catalogo/categorias/<id>/editar/` | Edición de categoría; solo Administrador. |
+| `/catalogo/categorias/<id>/estado/` | Activación o desactivación de categoría por POST. |
+| `/inventario/` | Existencias por producto, alertas de stock y vencimientos. |
+| `/inventario/lotes/` | Listado y filtros de lotes. |
+| `/inventario/lotes/nuevo/` | Alta de lote con stock inicial; solo Administrador. |
+| `/inventario/lotes/<id>/editar/` | Edición de datos del lote; solo Administrador. |
+| `/inventario/lotes/<id>/estado/` | Activación o desactivación de lote por POST. |
+| `/inventario/movimientos/` | Historial de movimientos de inventario. |
+| `/inventario/movimientos/nuevo/` | Registro de entrada, salida o ajuste. |
+| `/compras/` | Listado y filtros de compras. |
+| `/compras/nueva/` | Alta de compra en borrador con líneas de detalle. |
+| `/compras/<id>/` | Ficha de consulta de la compra. |
+| `/compras/<id>/editar/` | Edición de una compra en borrador. |
+| `/compras/<id>/recibir/` | Recepción sobre lotes existentes y entrada de inventario. |
+| `/compras/<id>/anular/` | Anulación de una compra en borrador por POST. |
+| `/compras/proveedores/` | Listado y filtros de proveedores. |
+| `/compras/proveedores/nuevo/` | Alta de proveedor. |
+| `/compras/proveedores/<id>/editar/` | Edición de proveedor. |
+| `/compras/proveedores/<id>/estado/` | Activación o desactivación de proveedor por POST. |
 | `/clientes/` | Listado y búsqueda de clientes. |
 | `/clientes/nuevo/` | Registro de un cliente. |
 | `/clientes/<id>/` | Ficha de consulta e historial de ventas del cliente. |
@@ -318,11 +364,24 @@ Abre `http://127.0.0.1:8000/` en el navegador. Para detener el servidor usa
 | `/reportes/ventas/` | Reporte de ventas por periodo y vendedor. |
 | `/reportes/compras/` | Reporte de compras por periodo, proveedor y estado. |
 | `/reportes/inventario/` | Reporte de inventario: stock por lote y alertas. |
-| `/admin/` | Administración de Django, incluido el catálogo de productos. |
+| `/admin/` | Administración de Django, incluidos los catálogos auxiliares. |
 
-Los productos que se pueden vender se cargan desde `/admin/` en
-**Catálogo → Productos**. Deben estar activos y tener un precio de venta. El
-CRUD visual del catálogo se implementará en una etapa posterior.
+Los productos se cargan y editan desde `/catalogo/` con una cuenta
+Administrador. Deben estar activos y tener un precio de venta para aparecer en
+el formulario de ventas. Los catálogos auxiliares de laboratorios, formas
+farmacéuticas y presentaciones se cargan desde `/admin/`.
+
+El inventario se opera desde `/inventario/` con una cuenta Administrador. Al
+crear un lote se puede indicar el stock inicial; los cambios posteriores se
+registran como movimientos de entrada, salida o ajuste. El sistema no permite
+dejar el stock en negativo ni desactivar un lote con existencias.
+
+Las compras se gestionan desde `/compras/` con una cuenta Administrador. Una
+compra nace en borrador, puede editarse o anularse mientras siga en ese estado,
+y al recibirse exige un lote existente por cada línea. La recepción registra una
+entrada de inventario por línea dentro de una transacción; las compras recibidas
+son de solo lectura y no se eliminan. Los proveedores se administran desde
+`/compras/proveedores/` y solo los activos aparecen al crear una compra.
 
 Si el puerto está ocupado:
 
@@ -477,12 +536,23 @@ el paso a PostgreSQL si habrá varios usuarios concurrentes.
 │   ├── catalogo/
 │   │   ├── admin.py
 │   │   ├── apps.py
+│   │   ├── forms.py
 │   │   ├── models.py
 │   │   ├── urls.py
 │   │   ├── views.py
 │   │   ├── tests.py
-│   │   └── migrations/0001_initial.py
+│   │   └── migrations/
 │   ├── inventario/
+│   │   ├── admin.py
+│   │   ├── apps.py
+│   │   ├── forms.py
+│   │   ├── models.py
+│   │   ├── selectors.py
+│   │   ├── services.py
+│   │   ├── urls.py
+│   │   ├── views.py
+│   │   ├── tests.py
+│   │   └── migrations/0001_initial.py
 │   ├── compras/
 │   ├── clientes/
 │   │   ├── admin.py
@@ -504,6 +574,11 @@ el paso a PostgreSQL si habrá varios usuarios concurrentes.
 │   │   ├── tests.py
 │   │   └── migrations/0001_initial.py
 │   └── reportes/
+│       ├── apps.py
+│       ├── models.py
+│       ├── urls.py
+│       ├── views.py
+│       └── tests.py
 ├── templates/
 │   ├── base.html
 │   ├── 403.html
@@ -511,8 +586,11 @@ el paso a PostgreSQL si habrá varios usuarios concurrentes.
 │   ├── includes/
 │   ├── core/
 │   ├── accounts/
+│   ├── catalogo/
+│   ├── inventario/
 │   ├── clientes/
 │   ├── ventas/
+│   ├── reportes/
 │   └── registration/login.html
 ├── static/
 │   ├── css/styles.css
@@ -538,31 +616,36 @@ el paso a PostgreSQL si habrá varios usuarios concurrentes.
   conservar la trazabilidad de ventas y compras.
 - No se implementó recuperación de contraseña por correo; el administrador
   puede asignar una contraseña nueva desde la edición de la cuenta.
-- Proveedor se implementará dentro de `compras`.
+- Proveedor se administra dentro de `compras`, junto con las compras y su
+  detalle.
+- Las compras nacen en borrador; solo los borradores se editan o anulan. La
+  recepción exige un lote existente por línea y registra entradas de inventario;
+  una compra recibida es inmutable y no se elimina.
 - Cliente se registra con nombre obligatorio; tipo y número de documento son
   opcionales y deben ingresarse juntos. No se guardan correo ni dirección en
   esta etapa.
-- El catálogo de productos es mínimo y se administra desde Django Admin; no hay
-  categorías, presentaciones, imágenes ni stock en esta etapa.
+- El catálogo permite administrar productos y categorías desde la interfaz; los
+  laboratorios, formas farmacéuticas y presentaciones siguen en Django Admin. No
+  hay imágenes ni stock propio en el catálogo: el stock vive en `inventario`.
+- El inventario se controla por lotes. El stock solo cambia por los servicios
+  transaccionales de `inventario`; un lote con existencias no puede desactivarse
+  y los movimientos son inmutables.
 - Las ventas son inmutables: no se editan, eliminan ni anulan desde la
   interfaz. El admin de ventas es de solo lectura.
 - El pago es solo en efectivo. La venta registra el monto recibido y calcula el
   cambio; no se procesan tarjetas ni otros medios.
-- La venta no descuenta stock. Esa integración se hará cuando exista
-  `inventario`.
+- La venta todavía no descuenta stock. La integración se hará usando los
+  servicios de `inventario`.
 - El ticket es un comprobante interno de 80 mm; no es una factura fiscal.
 - SQLite es suficiente para la etapa local; no se asume concurrencia alta.
-- No se implementaron impuestos, descuentos, vencimientos ni facturación
-  fiscal.
+- No se implementaron impuestos, descuentos ni facturación fiscal.
 
 ## Próximos pasos
 
-1. Implementar el CRUD visual de `catalogo` y las categorías.
-2. Implementar existencias y movimientos transaccionales en `inventario`.
-3. Integrar la salida de inventario en el servicio transaccional de ventas.
-4. Implementar `compras` y la recepción que actualiza inventario.
-5. Completar clientes con edición y desactivación.
-6. Endurecer seguridad, backups y despliegue.
+1. Integrar la salida de inventario en el servicio transaccional de ventas.
+2. Completar clientes con edición y desactivación.
+3. Endurecer seguridad, backups y despliegue.
+4. Evaluar reglas FEFO para elegir lotes al vender.
 
 ## Documentación adicional
 
@@ -573,4 +656,7 @@ el paso a PostgreSQL si habrá varios usuarios concurrentes.
 - [ADR-004: Proveedores dentro de compras](docs/adr/ADR-004-proveedores-en-compras.md)
 - [ADR-005: Registro y consulta de clientes](docs/adr/ADR-005-clientes-registro-consulta.md)
 - [ADR-006: Ventas con catálogo mínimo y ticket HTML](docs/adr/ADR-006-ventas-catalogo-minimo-ticket.md)
+- [ADR-007: Catálogo visual de productos y categorías](docs/adr/ADR-007-catalogo-visual-productos-categorias.md)
+- [ADR-008: Inventario por lotes con movimientos transaccionales](docs/adr/ADR-008-inventario-lotes-movimientos.md)
+- [ADR-009: Compras, proveedores y recepción sobre lotes](docs/adr/ADR-009-compras-proveedores-recepcion.md)
 - [CHANGELOG](CHANGELOG.md)

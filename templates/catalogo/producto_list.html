@@ -1,0 +1,240 @@
+{% extends "base.html" %}
+
+{% block title %}Catálogo de productos | Farmacia Lufar{% endblock %}
+
+{% block content %}
+  <div class="page-header">
+    <div>
+      <p class="eyebrow">Operación</p>
+      <h1>Catálogo de productos</h1>
+      <p class="page-header__text">
+        Consulta el maestro de productos, sus precios y la categoría a la que
+        pertenecen.
+      </p>
+    </div>
+    <div class="page-header__actions">
+      <a class="btn btn--secondary" href="{% url 'catalogo:categorias' %}">
+        Categorías
+      </a>
+      {% if puede_administrar %}
+        <a class="btn btn--primary" href="{% url 'catalogo:producto_crear' %}">
+          Nuevo producto
+        </a>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="stat-grid stat-grid--compact">
+    <article class="stat-card stat-card--green">
+      <span class="stat-card__label">Productos</span>
+      <p class="stat-card__value">{{ total_productos }}</p>
+      <p class="stat-card__detail">Registrados en el catálogo</p>
+    </article>
+    <article class="stat-card stat-card--teal">
+      <span class="stat-card__label">Activos</span>
+      <p class="stat-card__value">{{ total_activos }}</p>
+      <p class="stat-card__detail">Disponibles para la venta</p>
+    </article>
+    <article class="stat-card stat-card--amber">
+      <span class="stat-card__label">Inactivos</span>
+      <p class="stat-card__value">{{ total_inactivos }}</p>
+      <p class="stat-card__detail">Fuera de operación</p>
+    </article>
+    <article class="stat-card stat-card--blue">
+      <span class="stat-card__label">Categorías</span>
+      <p class="stat-card__value">{{ total_categorias }}</p>
+      <p class="stat-card__detail">Grupos de productos</p>
+    </article>
+  </div>
+
+  <section class="card">
+    <form method="get" class="filter-form filter-form--catalog">
+      <div class="form-field">
+        <label for="q">Buscar</label>
+        <input
+          class="form-control"
+          type="search"
+          id="q"
+          name="q"
+          value="{{ q }}"
+          placeholder="Código, nombre o principio activo"
+        >
+      </div>
+      <div class="form-field">
+        <label for="categoria">Categoría</label>
+        <select class="form-control" id="categoria" name="categoria">
+          <option value="">Todas</option>
+          {% for item in categorias %}
+            <option value="{{ item.pk }}"{% if categoria == item.pk|stringformat:"s" %} selected{% endif %}>
+              {{ item.nombre }}
+            </option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="form-field">
+        <label for="estado">Estado</label>
+        <select class="form-control" id="estado" name="estado">
+          <option value="">Todos</option>
+          <option value="activo"{% if estado == "activo" %} selected{% endif %}>
+            Activos
+          </option>
+          <option value="inactivo"{% if estado == "inactivo" %} selected{% endif %}>
+            Inactivos
+          </option>
+        </select>
+      </div>
+      <div class="filter-form__actions">
+        <button class="btn btn--primary" type="submit">Buscar</button>
+        {% if q or categoria or estado %}
+          <a class="btn btn--secondary" href="{% url 'catalogo:index' %}">
+            Limpiar
+          </a>
+        {% endif %}
+      </div>
+    </form>
+  </section>
+
+  <section class="card">
+    <div class="card__header">
+      <div>
+        <p class="eyebrow">Maestro</p>
+        <h2>Productos registrados</h2>
+        <p class="card__hint">
+          {% if paginator.count %}
+            {{ paginator.count }} resultado{{ paginator.count|pluralize }}
+          {% else %}
+            Sin resultados
+          {% endif %}
+        </p>
+      </div>
+      {% if q or categoria or estado %}
+        <span class="badge badge--soft">Filtro aplicado</span>
+      {% endif %}
+    </div>
+
+    {% if productos %}
+      <div class="table-wrap">
+        <table class="table">
+          <thead>
+            <tr>
+              <th scope="col">Producto</th>
+              <th scope="col">Categoría</th>
+              <th scope="col">Precio</th>
+              <th scope="col">Stock mínimo</th>
+              <th scope="col">Estado</th>
+              {% if puede_administrar %}
+                <th scope="col"><span class="sr-only">Acciones</span></th>
+              {% endif %}
+            </tr>
+          </thead>
+          <tbody>
+            {% for producto in productos %}
+              <tr>
+                <td>
+                  {% if puede_administrar %}
+                    <a
+                      class="table__primary"
+                      href="{% url 'catalogo:producto_editar' producto.pk %}"
+                    >{{ producto.nombre }}</a>
+                  {% else %}
+                    <span class="table__primary">{{ producto.nombre }}</span>
+                  {% endif %}
+                  <span class="table__secondary">
+                    {{ producto.codigo }}
+                    {% if producto.principio_activo %}
+                      · {{ producto.principio_activo }}
+                    {% endif %}
+                  </span>
+                </td>
+                <td>
+                  <span class="table__primary">{{ producto.categoria.nombre }}</span>
+                  {% if producto.laboratorio %}
+                    <span class="table__secondary">
+                      {{ producto.laboratorio.nombre }}
+                    </span>
+                  {% endif %}
+                </td>
+                <td>Bs {{ producto.precio_venta|stringformat:"0.2f" }}</td>
+                <td>{{ producto.stock_minimo }}</td>
+                <td>
+                  {% if producto.activo %}
+                    <span class="badge badge--success">Activo</span>
+                  {% else %}
+                    <span class="badge badge--muted">Inactivo</span>
+                  {% endif %}
+                </td>
+                {% if puede_administrar %}
+                  <td class="table__actions">
+                    <a
+                      class="btn btn--secondary btn--small"
+                      href="{% url 'catalogo:producto_editar' producto.pk %}"
+                    >Editar</a>
+                    <form method="post" action="{% url 'catalogo:producto_estado' producto.pk %}">
+                      {% csrf_token %}
+                      {% if producto.activo %}
+                        <button class="btn btn--danger btn--small" type="submit">
+                          Desactivar
+                        </button>
+                      {% else %}
+                        <button class="btn btn--secondary btn--small" type="submit">
+                          Activar
+                        </button>
+                      {% endif %}
+                    </form>
+                  </td>
+                {% endif %}
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <div class="empty-state">
+        <span class="empty-state__icon" aria-hidden="true">PR</span>
+        {% if q or categoria or estado %}
+          <h3>No encontramos productos</h3>
+          <p>Prueba con otro término de búsqueda o limpia los filtros.</p>
+          <p class="empty-state__actions">
+            <a class="btn btn--secondary" href="{% url 'catalogo:index' %}">
+              Limpiar filtros
+            </a>
+          </p>
+        {% else %}
+          <h3>Aún no hay productos registrados</h3>
+          {% if puede_administrar %}
+            <p>Registra el primer producto para comenzar a construir el catálogo.</p>
+            <p class="empty-state__actions">
+              <a class="btn btn--primary" href="{% url 'catalogo:producto_crear' %}">
+                Registrar primer producto
+              </a>
+            </p>
+          {% else %}
+            <p>El administrador aún no ha cargado productos en el catálogo.</p>
+          {% endif %}
+        {% endif %}
+      </div>
+    {% endif %}
+
+    {% if is_paginated %}
+      <nav class="pagination" aria-label="Paginación de productos">
+        <p class="pagination__summary">
+          Página {{ page_obj.number }} de {{ paginator.num_pages }}
+        </p>
+        <div class="pagination__links">
+          {% if page_obj.has_previous %}
+            <a
+              class="btn btn--secondary btn--small"
+              href="?{% if querystring %}{{ querystring }}&{% endif %}page={{ page_obj.previous_page_number }}"
+            >Anterior</a>
+          {% endif %}
+          {% if page_obj.has_next %}
+            <a
+              class="btn btn--secondary btn--small"
+              href="?{% if querystring %}{{ querystring }}&{% endif %}page={{ page_obj.next_page_number }}"
+            >Siguiente</a>
+          {% endif %}
+        </div>
+      </nav>
+    {% endif %}
+  </section>
+{% endblock %}

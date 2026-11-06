@@ -1,6 +1,6 @@
 # Arquitectura — Farmacia Lufar
 
-**Estado:** base funcional con autenticación y gestión de usuarios/roles, módulo de clientes (registro, consulta e historial), módulo de ventas (registro, consulta y ticket) y reportes de solo lectura de ventas, compras e inventario. Los modelos de catálogo, compras e inventario ya existen; sus capas de servicio y vistas siguen pendientes.
+**Estado:** base funcional con autenticación y gestión de usuarios/roles, módulo de catálogo (productos y categorías), módulo de inventario (existencias, lotes, movimientos y alertas), módulo de clientes (registro, consulta e historial), módulo de ventas (registro, consulta y ticket), módulo de compras (proveedores, borradores y recepción que actualiza inventario) y reportes de solo lectura de ventas, compras e inventario.
 
 ## 1. Visión general
 
@@ -25,16 +25,16 @@ flowchart TB
 |---|---|---|
 | `core` | Dashboard, mixins, filtros, utilidades compartidas y `ConfiguracionSistema`. No contiene entidades de negocio. | Base implementada |
 | `accounts` | Login, logout, perfil, usuarios, grupos `Administrador` y `Vendedor`, permisos por modelo y autorización por rol. | Implementado |
-| `catalogo` | Categorías, laboratorios, formas farmacéuticas, presentaciones, productos y precios. | Modelos y admin implementados; CRUD visual pendiente |
-| `inventario` | Existencias, lotes y movimientos de entrada, salida y ajuste. | Modelos `Lote` y `MovimientoInventario`; servicios y vistas pendientes |
-| `compras` | Proveedores, compras, detalle y recepción de mercadería. | Modelos `Proveedor`, `Compra` y `DetalleCompra`; vistas pendientes |
+| `catalogo` | Categorías, laboratorios, formas farmacéuticas, presentaciones, productos y precios. | CRUD visual de productos y categorías implementado; catálogos auxiliares en admin |
+| `inventario` | Existencias, lotes y movimientos de entrada, salida y ajuste. | Existencias, CRUD de lotes, movimientos y alertas implementados |
+| `compras` | Proveedores, compras, detalle y recepción de mercadería. | Proveedores, borradores, recepción y anulación implementados |
 | `clientes` | Datos de clientes e historial comercial. | Registro, consulta e historial implementados |
 | `ventas` | Ventas, detalles, cálculo de totales, cambio y ticket. | Registro, consulta y ticket implementados |
 | `reportes` | Consultas e informes de solo lectura. No tendrá modelos propios. | Reportes de ventas, compras e inventario implementados |
 
 ### Decisión sobre proveedores
 
-El alcance menciona proveedores, pero define ocho aplicaciones y no incluye una app `proveedores`. Para no crear una novena app sin necesidad, el modelo `Proveedor` pertenecerá a `compras`, que es el contexto donde se usa. Si en el futuro la gestión de proveedores crece de forma independiente, podrá extraerse con una migración planificada. Ver `docs/adr/ADR-004-proveedores-en-compras.md`.
+El alcance menciona proveedores, pero define ocho aplicaciones y no incluye una app `proveedores`. Para no crear una novena app sin necesidad, el modelo `Proveedor` pertenece a `compras`, que es el contexto donde se usa. Si en el futuro la gestión de proveedores crece de forma independiente, podrá extraerse con una migración planificada. Ver `docs/adr/ADR-004-proveedores-en-compras.md`.
 
 ## 3. Autenticación y autorización
 
@@ -89,7 +89,7 @@ Estas reglas buscan evitar dependencias circulares y duplicación de lógica:
 1. Cada app es dueña de sus modelos, migraciones, formularios, vistas, URLs y pruebas.
 2. Las referencias entre modelos se harán con cadenas (`"catalogo.Producto"`) para evitar importaciones circulares.
 3. `catalogo` es dueño del maestro de productos. `inventario` referencia productos, pero no modifica sus datos maestros.
-4. `inventario` es el único módulo que debe alterar existencias. Compras y ventas deberán solicitar movimientos a través de una función de servicio transaccional.
+4. `inventario` es el único módulo que altera existencias. Los cambios se hacen con `crear_lote()` y `registrar_movimiento()` de `apps/inventario/services.py`; compras y ventas usan esos mismos servicios dentro de sus transacciones.
 5. `compras` es dueño de `Proveedor`, `Compra` y `DetalleCompra`.
 6. `clientes` es dueño de `Cliente`. `ventas` podrá referenciarlo, pero no modificar sus datos maestros.
 7. `ventas` es dueño de `Venta` y `DetalleVenta`. En esta etapa el único medio de pago es efectivo, por lo que no existe un modelo `Pago` separado.
@@ -134,7 +134,97 @@ Reglas de esta etapa:
 - El ticket se genera como HTML imprimible de 80 mm con CSS `@media print`; no
   se usa una librería PDF.
 
-## 6. Convenciones del equipo
+## 6. Flujo de inventario
+
+```mermaid
+sequenceDiagram
+    actor A as Administrador
+    participant F as Formulario
+    participant S as Servicio de inventario
+    participant DB as SQLite
+
+    A->>F: Lote, cantidad y tipo de movimiento
+    F->>S: Datos limpios
+    S->>DB: BEGIN
+    S->>DB: SELECT Lote FOR UPDATE
+    S->>S: Valida lote activo, cantidad y stock suficiente
+    S->>DB: UPDATE Lote.stock_actual
+    S->>DB: INSERT MovimientoInventario
+    S->>DB: COMMIT
+    S-->>F: Movimiento registrado
+```
+
+Reglas de esta etapa:
+
+- `Lote` es la unidad de existencia. El stock no se guarda en `Producto`; el
+  producto solo define el umbral `stock_minimo`.
+- `crear_lote()` crea el lote con stock cero y, si se indica stock inicial,
+  registra un movimiento `INICIAL` dentro de la misma transacción.
+- `registrar_movimiento()` bloquea el lote con `select_for_update()`, valida que
+  esté activo y aplica el signo del movimiento:
+  `ENTRADA` y `AJUSTE_POSITIVO` suman; `SALIDA` y `AJUSTE_NEGATIVO` restan. El
+  stock resultante nunca puede ser negativo.
+- El tipo `INICIAL` no se ofrece en el formulario manual; solo lo genera el alta
+  del lote para evitar duplicar la carga inicial.
+- `MovimientoInventario` es inmutable: no se edita ni se elimina desde la
+  interfaz y su admin es de solo lectura. El admin de lotes también trata
+  `stock_actual` como campo de solo lectura.
+- Un lote con existencias no puede desactivarse. La regla se valida en el
+  modelo y en la vista de cambio de estado.
+- `apps/inventario/selectors.py` centraliza `stock_por_producto()` y
+  `productos_con_stock_bajo()`. Las alertas comparan el total de lotes activos
+  con `stock_minimo` usando `<=`, igual que el reporte de inventario.
+- El listado de existencias busca por producto, filtra por estado y por alerta
+  (stock bajo, sin stock, por vencer o vencido). El listado de lotes agrega
+  búsqueda y filtro de vencimiento; el historial de movimientos filtra por tipo
+  y texto.
+
+## 7. Flujo de compras
+
+```mermaid
+sequenceDiagram
+    actor A as Administrador
+    participant F as Formulario y formset
+    participant S as Servicio de compras
+    participant DB as SQLite
+    participant I as Servicio de inventario
+
+    A->>F: Proveedor, factura y líneas de producto
+    F->>S: Datos limpios
+    S->>S: Calcula subtotal, impuesto y total en el servidor
+    S->>DB: BEGIN + INSERT Compra (BORRADOR) + DetalleCompra
+    S-->>F: Compra en borrador
+    A->>F: Selecciona un lote existente por cada línea
+    F->>S: recibir_compra()
+    S->>DB: BEGIN + SELECT Compra FOR UPDATE
+    S->>S: Valida estado borrador, producto, lote activo y lote único
+    S->>I: registrar_movimiento(ENTRADA) por línea
+    I->>DB: UPDATE Lote.stock_actual + INSERT MovimientoInventario
+    S->>DB: UPDATE Compra (RECIBIDA + fecha_recepcion)
+    S->>DB: COMMIT
+```
+
+Reglas de esta etapa:
+
+- `Proveedor`, `Compra` y `DetalleCompra` viven en `compras`. El NIT es opcional
+  pero único cuando se informa, sin distinguir mayúsculas.
+- Una compra nace en `BORRADOR`. Solo los borradores se editan o anulan; una
+  compra `RECIBIDA` es inmutable y una `ANULADA` no vuelve a borrador.
+- Los totales son autoritativos del servidor:
+  `subtotal = Σ(cantidad × costo_unitario)` y `total = subtotal + impuesto`.
+  El formulario no envía `subtotal` ni `total`.
+- Se permite repetir un producto en varias líneas para asignarle lotes distintos
+  en la recepción.
+- La recepción exige un lote existente, activo y del mismo producto por cada
+  línea. No crea lotes; si faltan, se crean desde `inventario`.
+- La recepción es atómica: valida todas las líneas antes de registrar
+  movimientos y usa `registrar_movimiento()` con tipo `ENTRADA` y un motivo que
+  incluye el número de compra. Si una línea falla, no queda ninguna entrada.
+- No se eliminan proveedores, compras ni detalles. Los proveedores se
+  desactivan con `activo`; las compras recibidas o anuladas son de solo lectura
+  también en Django Admin.
+
+## 8. Convenciones del equipo
 
 - **Idioma:** nombres de dominio y textos de interfaz en español; APIs y conceptos propios de Django en inglés. Evitar tildes en identificadores de código (`Categoria`, no `Categoría`).
 - **Modelos:** nombres en singular (`Producto`, `Compra`, `Venta`) y `related_name` explícitos en las relaciones.
@@ -149,7 +239,7 @@ Reglas de esta etapa:
   no se guardan contraseñas ni secretos en el repositorio.
 - **Git:** una rama por funcionalidad, PR hacia `develop` y revisión del otro desarrollador.
 
-## 7. Base de datos y migraciones
+## 9. Base de datos y migraciones
 
 La base inicial es SQLite (`db.sqlite3`), ignorada por Git. SQLite es suficiente para el desarrollo local y una única instancia, pero tiene limitaciones de concurrencia. Si el sistema se despliega para varios usuarios simultáneos, se evaluará PostgreSQL antes de la puesta en producción.
 
@@ -157,20 +247,18 @@ El esquema ya cubre el modelo relacional completo: `clientes` (Cliente), `catalo
 
 Quedan pendientes las capas de servicio y las vistas:
 
-1. `inventario`: servicios transaccionales de entrada, salida y ajuste con lógica FEFO.
-2. `compras`: vistas de proveedores y recepción de compras que generen movimientos de entrada.
-3. `ventas`: integrar la salida de inventario en `registrar_venta`.
-4. `catalogo`: CRUD visual de productos y catálogos auxiliares.
+1. `ventas`: integrar la salida de inventario en `registrar_venta`, definiendo
+   la selección de lotes (por ejemplo, FEFO).
 
-## 8. Roadmap sugerido
+## 10. Roadmap sugerido
 
 | Fase | Entregable | Dependencias |
 |---|---|---|
 | 0 | Autenticación, usuarios, roles y permisos por modelo (implementado) | — |
-| 1 | Catálogo mínimo (implementado) y CRUD visual de productos | `accounts`, `core` |
-| 2 | Inventario y movimientos transaccionales | Fase 1 |
+| 1 | Catálogo con CRUD visual de productos y categorías (implementado) | `accounts`, `core` |
+| 2 | Inventario: existencias, lotes, movimientos y alertas (implementado) | Fase 1 |
 | 3 | Clientes: registro, consulta e historial (implementado) | `accounts` |
-| 4 | Compras, proveedores y recepción | Fases 1 y 2 |
+| 4 | Compras, proveedores y recepción (implementado) | Fases 1 y 2 |
 | 5 | Ventas: registro, total, cambio y ticket (implementado); salida de inventario pendiente | Fases 1, 2 y 3 |
 | 6 | Reportes de ventas, compras y stock (implementado) | Fases 2, 4 y 5 |
 | 7 | Endurecimiento de seguridad, backups y despliegue | Todas |
@@ -182,7 +270,7 @@ Quedan pendientes las capas de servicio y las vistas:
 - **Cambios compartidos:** `core` y `accounts` requieren revisión del otro desarrollador.
 - Las integraciones entre ventas/compras e inventario se acuerdan antes de implementarse y se prueban en una rama conjunta.
 
-## 9. Decisiones registradas
+## 11. Decisiones registradas
 
 - [ADR-001: Monolito modular con Django MVT](adr/ADR-001-arquitectura-monolitica-modular.md)
 - [ADR-002: User integrado y autorización por grupos](adr/ADR-002-user-integrado-y-grupos.md)
@@ -190,3 +278,6 @@ Quedan pendientes las capas de servicio y las vistas:
 - [ADR-004: Proveedores dentro de compras](adr/ADR-004-proveedores-en-compras.md)
 - [ADR-005: Registro y consulta de clientes](adr/ADR-005-clientes-registro-consulta.md)
 - [ADR-006: Ventas con catálogo mínimo y ticket HTML](adr/ADR-006-ventas-catalogo-minimo-ticket.md)
+- [ADR-007: Catálogo visual de productos y categorías](adr/ADR-007-catalogo-visual-productos-categorias.md)
+- [ADR-008: Inventario por lotes con movimientos transaccionales](adr/ADR-008-inventario-lotes-movimientos.md)
+- [ADR-009: Compras, proveedores y recepción sobre lotes](adr/ADR-009-compras-proveedores-recepcion.md)

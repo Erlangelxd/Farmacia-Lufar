@@ -1,0 +1,211 @@
+{% extends "base.html" %}
+
+{% block title %}{{ compra.numero }} | Compras | Farmacia Lufar{% endblock %}
+
+{% block content %}
+  <div class="page-header">
+    <div>
+      <p class="eyebrow">Compras</p>
+      <h1>{{ compra.numero }}</h1>
+      <p class="page-header__text">
+        Compra registrada el {{ compra.creado_en|date:"d/m/Y H:i" }}.
+      </p>
+    </div>
+    <div class="page-header__actions">
+      <a class="btn btn--secondary" href="{% url 'compras:index' %}">
+        Volver al listado
+      </a>
+      {% if es_borrador %}
+        <a
+          class="btn btn--secondary"
+          href="{% url 'compras:compra_editar' compra.pk %}"
+        >Editar</a>
+        <a
+          class="btn btn--primary"
+          href="{% url 'compras:compra_recepcion' compra.pk %}"
+        >Recibir compra</a>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="detail-grid">
+    <section class="card">
+      <div class="card__header">
+        <div>
+          <p class="eyebrow">Operación</p>
+          <h2>Datos de la compra</h2>
+        </div>
+        {% if es_borrador %}
+          <span class="badge badge--warning">Borrador</span>
+        {% elif es_recibida %}
+          <span class="badge badge--success">Recibida</span>
+        {% else %}
+          <span class="badge badge--neutral">Anulada</span>
+        {% endif %}
+      </div>
+
+      <dl class="detail-list">
+        <div>
+          <dt>Número</dt>
+          <dd>{{ compra.numero }}</dd>
+        </div>
+        <div>
+          <dt>Proveedor</dt>
+          <dd>
+            <a href="{% url 'compras:proveedor_editar' compra.proveedor.pk %}">
+              {{ compra.proveedor.nombre }}
+            </a>
+            {% if compra.proveedor.nit %}
+              <span class="table__secondary">
+                NIT {{ compra.proveedor.nit }}
+              </span>
+            {% endif %}
+          </dd>
+        </div>
+        <div>
+          <dt>Número de factura</dt>
+          <dd>
+            {% if compra.numero_factura %}
+              {{ compra.numero_factura }}
+            {% else %}
+              <span class="text-muted">—</span>
+            {% endif %}
+          </dd>
+        </div>
+        <div>
+          <dt>Fecha de compra</dt>
+          <dd>{{ compra.fecha_compra|date:"d/m/Y" }}</dd>
+        </div>
+        <div>
+          <dt>Fecha de recepción</dt>
+          <dd>
+            {% if compra.fecha_recepcion %}
+              {{ compra.fecha_recepcion|date:"d/m/Y" }}
+            {% else %}
+              <span class="text-muted">Pendiente</span>
+            {% endif %}
+          </dd>
+        </div>
+        <div>
+          <dt>Registrado por</dt>
+          <dd>
+            {{ compra.usuario.get_full_name|default:compra.usuario.username }}
+          </dd>
+        </div>
+        {% if compra.observaciones %}
+          <div>
+            <dt>Observaciones</dt>
+            <dd>{{ compra.observaciones|linebreaksbr }}</dd>
+          </div>
+        {% endif %}
+      </dl>
+    </section>
+
+    <section class="card">
+      <div class="card__header">
+        <h2>Resumen</h2>
+      </div>
+      <dl class="detail-list">
+        <div>
+          <dt>Líneas</dt>
+          <dd>{{ compra.detalles.all|length }}</dd>
+        </div>
+        <div>
+          <dt>Unidades</dt>
+          <dd>{{ compra.cantidad_productos }}</dd>
+        </div>
+        <div>
+          <dt>Subtotal</dt>
+          <dd>Bs {{ compra.subtotal|stringformat:"0.2f" }}</dd>
+        </div>
+        <div>
+          <dt>Impuesto</dt>
+          <dd>Bs {{ compra.impuesto|stringformat:"0.2f" }}</dd>
+        </div>
+        <div>
+          <dt>Total</dt>
+          <dd>
+            <strong>Bs {{ compra.total|stringformat:"0.2f" }}</strong>
+          </dd>
+        </div>
+      </dl>
+
+      {% if es_borrador %}
+        <form
+          method="post"
+          action="{% url 'compras:compra_anular' compra.pk %}"
+          class="form-actions"
+        >
+          {% csrf_token %}
+          <button class="btn btn--danger" type="submit">
+            Anular borrador
+          </button>
+        </form>
+        <p class="field-help">
+          Anular un borrador no afecta el inventario. Las compras recibidas no
+          se pueden anular.
+        </p>
+      {% endif %}
+    </section>
+  </div>
+
+  <section class="card">
+    <div class="card__header">
+      <div>
+        <p class="eyebrow">Detalle</p>
+        <h2>Productos comprados</h2>
+      </div>
+    </div>
+
+    <div class="table-wrap">
+      <table class="table">
+        <thead>
+          <tr>
+            <th scope="col">Producto</th>
+            <th scope="col">Código</th>
+            <th scope="col">Cantidad</th>
+            <th scope="col">Costo unitario</th>
+            <th scope="col">Subtotal</th>
+            <th scope="col">Lote</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for detalle in compra.detalles.all %}
+            <tr>
+              <td>
+                <span class="table__primary">{{ detalle.producto.nombre }}</span>
+              </td>
+              <td>{{ detalle.producto.codigo }}</td>
+              <td>{{ detalle.cantidad }}</td>
+              <td>Bs {{ detalle.costo_unitario|stringformat:"0.2f" }}</td>
+              <td>Bs {{ detalle.subtotal|stringformat:"0.2f" }}</td>
+              <td>
+                {% if detalle.lote %}
+                  {{ detalle.lote.codigo_lote }}
+                {% else %}
+                  <span class="text-muted">Sin asignar</span>
+                {% endif %}
+              </td>
+            </tr>
+          {% empty %}
+            <tr>
+              <td colspan="6">
+                <span class="text-muted">
+                  La compra no tiene líneas registradas.
+                </span>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+        <tfoot>
+          <tr>
+            <th colspan="4">Total</th>
+            <td colspan="2">
+              <strong>Bs {{ compra.total|stringformat:"0.2f" }}</strong>
+            </td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+  </section>
+{% endblock %}

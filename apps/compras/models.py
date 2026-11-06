@@ -7,6 +7,7 @@ alcance inicial y evitar una novena app sin necesidad.
 from decimal import Decimal
 
 from django.conf import settings
+from django.core.exceptions import ValidationError
 from django.core.validators import MinValueValidator
 from django.db import models
 from django.db.models import Q
@@ -43,6 +44,30 @@ class Proveedor(models.Model):
 
     def __str__(self) -> str:
         return self.nombre
+
+    def clean(self):
+        """Normaliza los datos y valida que el NIT no se repita."""
+        super().clean()
+        self.nombre = " ".join((self.nombre or "").split())
+        self.nit = (self.nit or "").strip().upper()
+        self.telefono = (self.telefono or "").strip()
+        self.email = (self.email or "").strip()
+        self.direccion = " ".join((self.direccion or "").split())
+        self.contacto = " ".join((self.contacto or "").split())
+
+        if not self.nombre:
+            raise ValidationError(
+                {"nombre": "Ingresa el nombre o razón social."}
+            )
+
+        if self.nit:
+            duplicados = Proveedor.objects.filter(nit__iexact=self.nit)
+            if self.pk:
+                duplicados = duplicados.exclude(pk=self.pk)
+            if duplicados.exists():
+                raise ValidationError(
+                    {"nit": "Ya existe un proveedor con ese NIT."}
+                )
 
     def save(self, *args, **kwargs):
         self.nombre = " ".join((self.nombre or "").split())
@@ -144,6 +169,46 @@ class Compra(models.Model):
             return "Sin número"
         return f"C-{self.pk:06d}"
 
+    @property
+    def cantidad_productos(self) -> int:
+        """Cantidad total de unidades compradas."""
+        if not self.pk:
+            return 0
+        return sum(detalle.cantidad for detalle in self.detalles.all())
+
+    def clean(self):
+        """Valida la coherencia de totales, fechas y estado."""
+        super().clean()
+        self.numero_factura = " ".join((self.numero_factura or "").split())
+        self.observaciones = (self.observaciones or "").strip()
+
+        if self.estado == self.Estado.RECIBIDA and not self.fecha_recepcion:
+            raise ValidationError(
+                {
+                    "fecha_recepcion": (
+                        "Registra la fecha de recepción de la compra."
+                    )
+                }
+            )
+        if self.estado != self.Estado.RECIBIDA and self.fecha_recepcion:
+            raise ValidationError(
+                {
+                    "fecha_recepcion": (
+                        "Solo una compra recibida puede tener fecha de "
+                        "recepción."
+                    )
+                }
+            )
+
+        # Los totales se recalculan en ``apps.compras.services`` a partir de las
+        # líneas; no se validan aquí para no rechazar el formulario, que no
+        # envía subtotal ni total.
+
+    def save(self, *args, **kwargs):
+        self.numero_factura = " ".join((self.numero_factura or "").split())
+        self.observaciones = (self.observaciones or "").strip()
+        super().save(*args, **kwargs)
+
     def __str__(self) -> str:
         return f"{self.numero} — {self.proveedor}"
 
@@ -207,6 +272,32 @@ class DetalleCompra(models.Model):
                 name="compras_detalle_subtotal_no_negativo",
             ),
         )
+
+    def clean(self):
+        """Calcula el subtotal y valida el lote asociado."""
+        super().clean()
+
+        if self.cantidad is not None and self.costo_unitario is not None:
+            self.subtotal = self.costo_unitario * self.cantidad
+
+        if self.lote_id and self.producto_id:
+            if self.lote.producto_id != self.producto_id:
+                raise ValidationError(
+                    {
+                        "lote": (
+                            "El lote debe pertenecer al producto seleccionado."
+                        )
+                    }
+                )
+            if not self.lote.activo:
+                raise ValidationError(
+                    {"lote": "El lote seleccionado no está activo."}
+                )
+
+    def save(self, *args, **kwargs):
+        if self.cantidad is not None and self.costo_unitario is not None:
+            self.subtotal = self.costo_unitario * self.cantidad
+        super().save(*args, **kwargs)
 
     def __str__(self) -> str:
         return f"{self.producto} x {self.cantidad}"

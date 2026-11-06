@@ -1,0 +1,120 @@
+{% extends "base.html" %}
+
+{% block title %}Recibir {{ compra.numero }} | Compras | Farmacia Lufar{% endblock %}
+
+{% block content %}
+  <div class="page-header">
+    <div>
+      <p class="eyebrow">Compras</p>
+      <h1>Recibir {{ compra.numero }}</h1>
+      <p class="page-header__text">
+        Selecciona el lote existente que recibirá cada producto. La recepción
+        registra una entrada de inventario y no puede deshacerse.
+      </p>
+    </div>
+    <a
+      class="btn btn--secondary"
+      href="{% url 'compras:compra_detalle' compra.pk %}"
+    >
+      Volver a la ficha
+    </a>
+  </div>
+
+  {% if faltan_lotes %}
+    <div class="notice notice--warning" role="alert">
+      <p>
+        Estos productos no tienen lotes activos y no se pueden recibir:
+      </p>
+      <ul>
+        {% for producto in faltan_lotes %}
+          <li>{{ producto.nombre }} ({{ producto.codigo }})</li>
+        {% endfor %}
+      </ul>
+      <p>
+        <a href="{% url 'inventario:lote_crear' %}">Crea un lote</a> para cada
+        producto y vuelve a esta pantalla.
+      </p>
+    </div>
+  {% endif %}
+
+  <form method="post" novalidate>
+    {% csrf_token %}
+
+    {% if form.non_field_errors %}
+      <div class="form-errors" role="alert">
+        {% for error in form.non_field_errors %}
+          <p>{{ error }}</p>
+        {% endfor %}
+      </div>
+    {% endif %}
+
+    <section class="card">
+      <div class="card__header">
+        <div>
+          <p class="eyebrow">Proveedor</p>
+          <h2>{{ compra.proveedor.nombre }}</h2>
+          <p class="card__hint">
+            {{ compra.detalles.all|length }} línea{{ compra.detalles.all|length|pluralize }}
+            · Total Bs {{ compra.total|stringformat:"0.2f" }}
+          </p>
+        </div>
+        <span class="badge badge--warning">Borrador</span>
+      </div>
+
+      <div class="table-wrap">
+        <table class="table">
+          <thead>
+            <tr>
+              <th scope="col">Producto</th>
+              <th scope="col">Cantidad</th>
+              <th scope="col">Costo unitario</th>
+              <th scope="col">Lote de destino</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for fila in filas %}
+              <tr>
+                <td>
+                  <span class="table__primary">
+                    {{ fila.detalle.producto.nombre }}
+                  </span>
+                  <span class="table__secondary">
+                    {{ fila.detalle.producto.codigo }}
+                  </span>
+                </td>
+                <td>{{ fila.detalle.cantidad }}</td>
+                <td>
+                  Bs {{ fila.detalle.costo_unitario|stringformat:"0.2f" }}
+                </td>
+                <td>
+                  {{ fila.campo }}
+                  {% for error in fila.campo.errors %}
+                    <p class="field-error">{{ error }}</p>
+                  {% endfor %}
+                  {% if fila.campo.help_text %}
+                    <p class="field-help">{{ fila.campo.help_text }}</p>
+                  {% endif %}
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+
+      <p class="form-note">
+        La recepción es atómica: si una línea falla, no se registra ninguna
+        entrada de inventario.
+      </p>
+
+      <div class="form-actions">
+        <button class="btn btn--primary" type="submit" {% if faltan_lotes %}disabled{% endif %}>
+          Confirmar recepción
+        </button>
+        <a
+          class="btn btn--secondary"
+          href="{% url 'compras:compra_detalle' compra.pk %}"
+        >Cancelar</a>
+      </div>
+    </section>
+  </form>
+{% endblock %}
