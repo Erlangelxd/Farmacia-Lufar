@@ -40,9 +40,12 @@
           <span class="topbar__date">{% now "d/m/Y" %}</span>
         </div>
 
-        <div class="topbar__status">
+        <div class="topbar__status" aria-label="Sesión activa de {{ user.get_full_name|default:user.username }}">
           <span class="status-dot" aria-hidden="true"></span>
-          Entorno local
+          <span class="topbar__status-info">
+            <strong class="topbar__status-name">{{ user.get_full_name|default:user.username }}</strong>
+            <span class="topbar__status-label">Sesión activa</span>
+          </span>
         </div>
       </header>
     {% endif %}

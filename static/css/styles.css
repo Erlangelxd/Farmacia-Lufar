@@ -227,8 +227,26 @@ h3 {
   background: var(--brand-soft);
   color: var(--brand-ink);
   font-size: 0.75rem;
-  font-weight: 600;
+  line-height: 1.2;
+}
+
+.topbar__status-info {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.topbar__status-name {
+  max-width: 13rem;
+  overflow: hidden;
+  font-weight: 700;
+  text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.topbar__status-label {
+  color: var(--muted);
+  font-size: 0.66rem;
 }
 
 .status-dot {
@@ -2085,6 +2103,10 @@ h3 {
   .topbar__status {
     padding: 0.3rem 0.5rem;
     font-size: 0.7rem;
+  }
+
+  .topbar__status-name {
+    max-width: 34vw;
   }
 
   .content {
