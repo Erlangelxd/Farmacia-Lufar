@@ -167,8 +167,9 @@ class InitialStructureTests(TestCase):
         response = self.client.get(reverse("core:dashboard"))
         self.assertEqual(response.status_code, 200)
         self.assertTemplateUsed(response, "core/dashboard.html")
-        self.assertContains(response, "Datos provisionales")
-        self.assertContains(response, "Provisional")
+        self.assertContains(response, "Resumen operativo")
+        self.assertContains(response, "Actividad reciente")
+        self.assertNotContains(response, "Datos provisionales")
 
         catalogo_response = self.client.get(reverse("catalogo:index"))
         self.assertEqual(catalogo_response.status_code, 200)

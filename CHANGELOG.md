@@ -6,6 +6,10 @@ Todos los cambios relevantes del proyecto se documentan en este archivo.
 
 ### Agregado
 
+- Panel general operativo con indicadores reales de catálogo, ventas,
+  inventario y compras, acceso rápido a módulos y actividad reciente de ventas.
+- Indicadores de inventario y compras limitados al rol Administrador; los
+  vendedores consultan solo datos de catálogo y ventas.
 - Módulo de compras completo: proveedores con alta, edición, activación y
   desactivación por POST; compras con líneas de detalle, edición y anulación de
   borradores; y recepción sobre lotes existentes que registra entradas de

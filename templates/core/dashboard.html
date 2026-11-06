@@ -8,9 +8,8 @@
       <p class="eyebrow">Panel general</p>
       <h1>Hola, {{ user.get_full_name|default:user.username }}</h1>
       <p class="hero__text">
-        Este es el punto de partida del sistema de gestión de Farmacia Lufar.
-        La estructura de módulos ya está preparada para incorporar la operación
-        real en las siguientes etapas.
+        Resumen de la actividad de Farmacia Lufar y accesos a las tareas
+        principales de tu jornada.
       </p>
       <p class="hero__date">
         <span class="hero__date-label">Hoy</span>
@@ -19,23 +18,16 @@
     </div>
     <div class="hero__aside">
       <span class="badge badge--light">Entorno local</span>
-      <span class="badge badge--outline">Etapa inicial</span>
+      <span class="badge badge--outline">Resumen operativo</span>
     </div>
   </section>
-
-  <div class="notice notice--warning" role="note">
-    <strong>Datos provisionales.</strong>
-    Los indicadores de este panel son ejemplos visuales y no representan
-    información real. Se reemplazarán por consultas a los módulos cuando existan
-    sus modelos y operaciones.
-  </div>
 
   <div class="stat-grid">
     {% for card in dashboard_cards %}
       <article class="stat-card stat-card--{{ card.tone }}">
         <div class="stat-card__top">
           <span class="stat-card__label">{{ card.label }}</span>
-          <span class="badge badge--sample">Provisional</span>
+          <span class="badge badge--muted">Actualizado</span>
         </div>
         <p class="stat-card__value">{{ card.value }}</p>
         <p class="stat-card__detail">{{ card.detail }}</p>
@@ -82,32 +74,44 @@
           </span>
           <span class="quick-link__arrow" aria-hidden="true">&rarr;</span>
         </a>
+        <a class="quick-link" href="{% url 'clientes:index' %}">
+          <span>
+            <strong>Clientes</strong>
+            <small>Registro e historial</small>
+          </span>
+          <span class="quick-link__arrow" aria-hidden="true">&rarr;</span>
+        </a>
+        <a class="quick-link" href="{% url 'reportes:index' %}">
+          <span>
+            <strong>Reportes</strong>
+            <small>Resumen de operaciones</small>
+          </span>
+          <span class="quick-link__arrow" aria-hidden="true">&rarr;</span>
+        </a>
       </div>
     </section>
 
     <section class="card">
       <div class="card__header">
         <div>
-          <p class="eyebrow">Proyecto</p>
-          <h2>Estado de la base</h2>
+          <p class="eyebrow">Seguimiento</p>
+          <h2>Actividad del mes</h2>
         </div>
       </div>
       <ul class="status-list">
         <li class="is-done">
           <span class="status-list__icon" aria-hidden="true">&check;</span>
-          Autenticación y grupos configurados
+          {{ sales_month_count }} ventas registradas este mes
         </li>
+        {% if can_view_stock %}
+          <li class="is-done">
+            <span class="status-list__icon" aria-hidden="true">&check;</span>
+            Indicadores de inventario y compras actualizados
+          </li>
+        {% endif %}
         <li class="is-done">
           <span class="status-list__icon" aria-hidden="true">&check;</span>
-          Interfaz base y navegación
-        </li>
-        <li class="is-done">
-          <span class="status-list__icon" aria-hidden="true">&check;</span>
-          Ocho módulos registrados y enrutados
-        </li>
-        <li class="is-pending">
-          <span class="status-list__icon" aria-hidden="true">&bull;</span>
-          Modelos, formularios y operaciones
+          Datos consultados desde los módulos operativos
         </li>
       </ul>
     </section>
@@ -119,15 +123,34 @@
         <p class="eyebrow">Trazabilidad</p>
         <h2>Actividad reciente</h2>
       </div>
-      <span class="badge badge--muted">Sin registros</span>
+      <a class="badge badge--muted" href="{% url 'ventas:index' %}">Ver todas</a>
     </div>
-    <div class="empty-state">
-      <span class="empty-state__icon" aria-hidden="true">+</span>
-      <h3>Aún no hay actividad</h3>
-      <p>
-        Los movimientos de compras, ventas e inventario aparecerán aquí cuando
-        se implementen los módulos. En esta etapa no se registran operaciones.
-      </p>
-    </div>
+    {% if recent_sales %}
+      <div class="table-wrap">
+        <table class="table">
+          <thead>
+            <tr><th>Venta</th><th>Cliente</th><th>Vendedor</th><th>Fecha</th><th>Total</th></tr>
+          </thead>
+          <tbody>
+            {% for sale in recent_sales %}
+              <tr>
+                <td><a href="{% url 'ventas:detalle' sale.pk %}">{{ sale.numero }}</a></td>
+                <td>{{ sale.cliente.nombre|default:"Consumidor final" }}</td>
+                <td>{{ sale.vendedor.get_full_name|default:sale.vendedor.username }}</td>
+                <td>{{ sale.creado_en|date:"d/m/Y H:i" }}</td>
+                <td>Bs {{ sale.total|floatformat:2 }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <div class="empty-state">
+        <span class="empty-state__icon" aria-hidden="true">+</span>
+        <h3>Aún no hay ventas</h3>
+        <p>Las ventas registradas aparecerán aquí.</p>
+        <a class="btn btn--primary" href="{% url 'ventas:crear' %}">Registrar venta</a>
+      </div>
+    {% endif %}
   </section>
 {% endblock %}

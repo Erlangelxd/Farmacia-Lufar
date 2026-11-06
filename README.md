@@ -5,7 +5,7 @@ proveedores, ventas, usuarios y reportes de Farmacia Lufar. Está construido con
 Python, Django, SQLite y plantillas renderizadas en el servidor.
 
 > **Estado actual:** estructura base funcional con autenticación, gestión de
-> usuarios y roles, navegación, dashboard provisional, módulo de catálogo con
+> usuarios y roles, navegación, dashboard operativo, módulo de catálogo con
 > productos y categorías, módulo de inventario con lotes, movimientos y alertas
 > de stock, módulo de clientes con registro y consulta, módulo de ventas con
 > cálculo de totales y ticket imprimible, módulo de compras con proveedores y
@@ -33,7 +33,8 @@ autenticación, la navegación ni la organización del proyecto.
   módulos no permitidos.
 - Interfaz administrativa responsive con plantilla base, menú, encabezado,
   mensajes y área de contenido.
-- Dashboard con indicadores de ejemplo marcados como **provisionales**.
+- Dashboard con indicadores reales de catálogo, ventas, inventario y compras,
+  actividad reciente y accesos rápidos según el rol.
 - Módulo de clientes: registro, listado con búsqueda y filtro por estado,
   ficha de consulta, historial de ventas y administración desde Django Admin.
 - Módulo de catálogo: productos (código, nombre, precio de venta, stock mínimo
@@ -608,7 +609,8 @@ el paso a PostgreSQL si habrá varios usuarios concurrentes.
 
 - La zona horaria inicial es `America/La_Paz`; se puede cambiar con
   `DJANGO_TIME_ZONE` sin modificar el código.
-- Los indicadores del dashboard son ejemplos visuales, no datos reales.
+- El dashboard consulta los módulos operativos; los indicadores de inventario
+  y compras solo se muestran a administradores.
 - Los permisos por modelo de los grupos base se sincronizan automáticamente
   tras cada migración. Un usuario sin rol no puede acceder a los módulos de
   negocio y recibe `403`.
