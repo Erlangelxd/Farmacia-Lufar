@@ -68,6 +68,27 @@
 </div>
 {% endif %}
 
+{% if puede_ver_inventario %}
+<div class="stat-grid stat-grid--compact">
+  <article class="stat-card stat-card--green">
+    <span class="stat-card__label">Ganancia bruta de hoy</span>
+    <p class="stat-card__value">Bs {{ ganancia_hoy|floatformat:2 }}</p>
+    <p class="stat-card__detail">Sobre ventas con costo completo</p>
+  </article>
+  <article class="stat-card stat-card--teal">
+    <span class="stat-card__label">Ganancia bruta del mes</span>
+    <p class="stat-card__value">Bs {{ ganancia_mes|floatformat:2 }}</p>
+    <p class="stat-card__detail">
+      {% if ventas_sin_costo_mes %}
+        {{ ventas_sin_costo_mes }} venta{{ ventas_sin_costo_mes|pluralize }} pendiente{{ ventas_sin_costo_mes|pluralize:"s" }} de costeo
+      {% else %}
+        Todas las ventas del mes tienen costo registrado
+      {% endif %}
+    </p>
+  </article>
+</div>
+{% endif %}
+
 <!-- Accesos a reportes -->
 <div class="report-cards">
 

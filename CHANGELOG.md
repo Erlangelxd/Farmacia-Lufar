@@ -6,6 +6,24 @@ Todos los cambios relevantes del proyecto se documentan en este archivo.
 
 ### Agregado
 
+- Script `docs/script-creacion-bd.sql` con el DDL completo del esquema SQLite:
+  tablas de negocio, tablas de Django, claves foráneas, restricciones `CHECK`,
+  índices y datos semilla de grupos y categoría `General`.
+- Diccionario de datos `docs/diccionario-de-datos.md` con columnas, tipos,
+  nulabilidad, valores predeterminados, claves, enumeraciones, reglas de
+  negocio y relaciones de las 17 tablas de negocio, más el resumen de las 10
+  tablas de infraestructura de Django.
+
+- Descuento automático de inventario al registrar ventas, con selección FEFO
+  de lotes activos y no vencidos, validación de stock suficiente y reversión
+  atómica ante errores.
+- Registro de costo unitario y unidades por capa de inventario; costeo FIFO de
+  las unidades vendidas dentro de cada lote y ganancia bruta en reportes.
+- Migración de existencias heredadas como costo desconocido y formulario para
+  que un administrador registre su costo real sin alterar cantidades.
+- Reportes de inventario valorizados a costo de adquisición y visibilidad
+  restringida al administrador para costos y márgenes.
+
 - Panel general operativo con indicadores reales de catálogo, ventas,
   inventario y compras, acceso rápido a módulos y actividad reciente de ventas.
 - Indicadores de inventario y compras limitados al rol Administrador; los

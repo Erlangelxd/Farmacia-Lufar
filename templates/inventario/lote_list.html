@@ -129,6 +129,7 @@
               <th scope="col">Vencimiento</th>
               <th scope="col">Ingreso</th>
               <th scope="col">Stock</th>
+              <th scope="col">Costo unitario / valor</th>
               <th scope="col">Estado</th>
               <th scope="col"><span class="sr-only">Acciones</span></th>
             </tr>
@@ -161,6 +162,20 @@
                     <strong>{{ lote.stock_actual|floatformat:2 }}</strong>
                   {% else %}
                     <span class="badge badge--muted">Sin stock</span>
+                  {% endif %}
+                </td>
+                <td>
+                  {% if lote.costo_unitario_promedio is not None %}
+                    <span class="table__primary">Bs {{ lote.costo_unitario_promedio|floatformat:2 }} / u.</span>
+                    <span class="table__secondary">
+                      {% if lote.valor_inventario_costo is not None %}
+                        Valor: Bs {{ lote.valor_inventario_costo|floatformat:2 }}
+                      {% endif %}
+                    </span>
+                  {% elif lote.stock_actual > 0 %}
+                    <span class="badge badge--warning">Costo sin registrar</span>
+                  {% else %}
+                    <span class="text-muted">Sin existencias</span>
                   {% endif %}
                 </td>
                 <td>

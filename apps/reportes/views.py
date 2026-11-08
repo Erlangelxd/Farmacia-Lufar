@@ -28,7 +28,7 @@ from apps.accounts.permissions import is_administrator
 from apps.catalogo.models import Producto
 from apps.compras.models import Compra, DetalleCompra, Proveedor
 from apps.core.mixins import RoleRequiredMixin
-from apps.inventario.models import Lote, MovimientoInventario
+from apps.inventario.models import CapaCosto, Lote, MovimientoInventario
 from apps.inventario.selectors import productos_con_stock_bajo, stock_por_producto
 from apps.ventas.models import DetalleVenta, Venta
 
@@ -53,6 +53,34 @@ def _rango_desde_periodo(periodo: str) -> tuple[date, date]:
         return hoy - timedelta(days=90), hoy
     # "año" o cualquier otro valor
     return hoy.replace(month=1, day=1), hoy
+
+
+def _resumen_ganancia(ventas_qs):
+    """Resume margen bruto solo para ventas con costo completo conocido."""
+    ventas_con_costo = ventas_qs.annotate(
+        lineas_sin_costo=Count(
+            "detalles",
+            filter=Q(detalles__costo_total__isnull=True),
+        )
+    ).filter(lineas_sin_costo=0)
+    ids_con_costo = ventas_con_costo.values("pk")
+    ingresos_con_costo = (
+        ventas_con_costo.aggregate(total=Sum("total"))["total"]
+        or Decimal("0.00")
+    )
+    costo_ventas = (
+        DetalleVenta.objects.filter(venta__in=ventas_con_costo).aggregate(
+            total=Sum("costo_total")
+        )["total"]
+        or Decimal("0.00")
+    )
+    return {
+        "ingresos_con_costo": ingresos_con_costo,
+        "costo_ventas": costo_ventas,
+        "ganancia_bruta": ingresos_con_costo - costo_ventas,
+        "ventas_con_costo": ventas_con_costo.count(),
+        "ventas_sin_costo": ventas_qs.exclude(pk__in=ids_con_costo).count(),
+    }
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -88,7 +116,14 @@ class ReportesIndexView(RoleRequiredMixin, TemplateView):
         stock_bajo = 0
         lotes_por_vencer = 0
         lotes_vencidos = 0
+        ganancia_hoy = Decimal("0.00")
+        ganancia_mes = Decimal("0.00")
+        ventas_sin_costo_mes = 0
         if puede_ver_inventario:
+            ganancia_hoy = _resumen_ganancia(ventas_hoy)["ganancia_bruta"]
+            resumen_mes = _resumen_ganancia(ventas_mes)
+            ganancia_mes = resumen_mes["ganancia_bruta"]
+            ventas_sin_costo_mes = resumen_mes["ventas_sin_costo"]
             compras_mes = Compra.objects.filter(
                 fecha_compra__gte=inicio_mes
             ).exclude(estado=Compra.Estado.ANULADA)
@@ -124,6 +159,9 @@ class ReportesIndexView(RoleRequiredMixin, TemplateView):
                 "stock_bajo": stock_bajo,
                 "lotes_por_vencer": lotes_por_vencer,
                 "lotes_vencidos": lotes_vencidos,
+                "ganancia_hoy": ganancia_hoy,
+                "ganancia_mes": ganancia_mes,
+                "ventas_sin_costo_mes": ventas_sin_costo_mes,
             }
         )
         return context
@@ -180,6 +218,18 @@ class ReporteVentasView(RoleRequiredMixin, TemplateView):
             )["t"]
             or 0
         )
+        puede_ver_costos = is_administrator(request.user)
+        resumen_ganancia = (
+            _resumen_ganancia(qs)
+            if puede_ver_costos
+            else {
+                "ingresos_con_costo": Decimal("0.00"),
+                "costo_ventas": Decimal("0.00"),
+                "ganancia_bruta": Decimal("0.00"),
+                "ventas_con_costo": 0,
+                "ventas_sin_costo": 0,
+            }
+        )
 
         # ── Ventas por día (para mini-gráfico de barras) ──────────────────────
         ventas_por_dia = list(
@@ -208,7 +258,7 @@ class ReporteVentasView(RoleRequiredMixin, TemplateView):
         )
 
         # ── Productos más vendidos ────────────────────────────────────────────
-        productos_top = (
+        productos_top_qs = (
             DetalleVenta.objects.filter(venta__in=qs)
             .values("nombre_producto", "codigo_producto")
             .annotate(
@@ -220,8 +270,26 @@ class ReporteVentasView(RoleRequiredMixin, TemplateView):
                     )
                 ),
             )
-            .order_by("-unidades")[:10]
+            .order_by("-unidades")
         )
+        if puede_ver_costos:
+            productos_top_qs = productos_top_qs.annotate(
+                ganancia_bruta=Sum(
+                    ExpressionWrapper(
+                        F("precio_unitario") * F("cantidad")
+                        - F("costo_total"),
+                        output_field=DecimalField(
+                            max_digits=16, decimal_places=2
+                        ),
+                    ),
+                    filter=Q(costo_total__isnull=False),
+                ),
+                unidades_sin_costo=Sum(
+                    "cantidad",
+                    filter=Q(costo_total__isnull=True),
+                ),
+            )
+        productos_top = productos_top_qs[:10]
 
         # ── Lista de vendedores (para filtro) ─────────────────────────────────
         vendedores = User.objects.filter(
@@ -245,6 +313,8 @@ class ReporteVentasView(RoleRequiredMixin, TemplateView):
                 "ingresos_total": ingresos_total,
                 "ticket_promedio": ticket_promedio,
                 "unidades_total": unidades_total,
+                "puede_ver_costos": puede_ver_costos,
+                **resumen_ganancia,
                 "ventas_por_dia": ventas_por_dia,
                 "ventas_por_vendedor": ventas_por_vendedor,
                 "productos_top": productos_top,
@@ -439,17 +509,27 @@ class ReporteInventarioView(RoleRequiredMixin, TemplateView):
             lotes_activos.aggregate(t=Sum("stock_actual"))["t"]
             or Decimal("0.00")
         )
+        capas_activas = CapaCosto.objects.filter(
+            lote__activo=True,
+            cantidad_restante__gt=0,
+        )
         valor_inventario = (
-            lotes_activos.aggregate(
+            capas_activas.filter(costo_unitario__isnull=False).aggregate(
                 v=Sum(
                     ExpressionWrapper(
-                        F("stock_actual") * F("producto__precio_venta"),
+                        F("cantidad_restante") * F("costo_unitario"),
                         output_field=DecimalField(
                             max_digits=16, decimal_places=2
                         ),
                     )
                 )
             )["v"]
+            or Decimal("0.00")
+        )
+        unidades_sin_costo = (
+            capas_activas.filter(costo_unitario__isnull=True).aggregate(
+                total=Sum("cantidad_restante")
+            )["total"]
             or Decimal("0.00")
         )
         total_lotes = lotes_activos.count()
@@ -491,6 +571,20 @@ class ReporteInventarioView(RoleRequiredMixin, TemplateView):
                         output_field=DecimalField(max_digits=14, decimal_places=2),
                     )
                 ),
+                ganancia_bruta=Sum(
+                    ExpressionWrapper(
+                        F("precio_unitario") * F("cantidad")
+                        - F("costo_total"),
+                        output_field=DecimalField(
+                            max_digits=16, decimal_places=2
+                        ),
+                    ),
+                    filter=Q(costo_total__isnull=False),
+                ),
+                unidades_sin_costo=Sum(
+                    "cantidad",
+                    filter=Q(costo_total__isnull=True),
+                ),
                 veces_vendido=Count("venta", distinct=True),
             )
             .order_by("-unidades_vendidas")[:10]
@@ -511,12 +605,15 @@ class ReporteInventarioView(RoleRequiredMixin, TemplateView):
                 "total_inactivos": total_inactivos,
                 "stock_unidades": stock_unidades,
                 "valor_inventario": valor_inventario,
+                "unidades_sin_costo": unidades_sin_costo,
                 "total_lotes": total_lotes,
-                "lotes_por_vencer": lotes_por_vencer.select_related("producto")[
-                    :10
-                ],
+                "lotes_por_vencer": lotes_por_vencer.select_related(
+                    "producto"
+                ).prefetch_related("capas_costo")[:10],
                 "total_por_vencer": total_por_vencer,
-                "lotes_vencidos": lotes_vencidos.select_related("producto")[:10],
+                "lotes_vencidos": lotes_vencidos.select_related(
+                    "producto"
+                ).prefetch_related("capas_costo")[:10],
                 "total_vencidos": total_vencidos,
                 "productos_stock_bajo": productos_stock_bajo[:10],
                 "total_stock_bajo": total_stock_bajo,

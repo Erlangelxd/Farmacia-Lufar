@@ -109,6 +109,21 @@
           {% endif %}
         </div>
 
+        {% if not es_creacion and hay_stock_sin_costo %}
+          <div class="form-field form-field--full">
+            <label for="{{ form.costo_unitario_existencia.id_for_label }}">
+              {{ form.costo_unitario_existencia.label }}
+            </label>
+            {{ form.costo_unitario_existencia }}
+            {% for error in form.costo_unitario_existencia.errors %}
+              <p class="field-error">{{ error }}</p>
+            {% endfor %}
+            {% if form.costo_unitario_existencia.help_text %}
+              <p class="field-help">{{ form.costo_unitario_existencia.help_text }}</p>
+            {% endif %}
+          </div>
+        {% endif %}
+
         {% if es_creacion %}
           <div class="form-field">
             <label for="{{ form.stock_inicial.id_for_label }}">
@@ -120,6 +135,18 @@
             {% endfor %}
             {% if form.stock_inicial.help_text %}
               <p class="field-help">{{ form.stock_inicial.help_text }}</p>
+            {% endif %}
+          </div>
+          <div class="form-field">
+            <label for="{{ form.costo_unitario_inicial.id_for_label }}">
+              {{ form.costo_unitario_inicial.label }}
+            </label>
+            {{ form.costo_unitario_inicial }}
+            {% for error in form.costo_unitario_inicial.errors %}
+              <p class="field-error">{{ error }}</p>
+            {% endfor %}
+            {% if form.costo_unitario_inicial.help_text %}
+              <p class="field-help">{{ form.costo_unitario_inicial.help_text }}</p>
             {% endif %}
           </div>
         {% endif %}

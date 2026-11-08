@@ -1,6 +1,6 @@
 # Arquitectura — Farmacia Lufar
 
-**Estado:** base funcional con autenticación y gestión de usuarios/roles, módulo de catálogo (productos y categorías), módulo de inventario (existencias, lotes, movimientos y alertas), módulo de clientes (registro, consulta e historial), módulo de ventas (registro, consulta y ticket), módulo de compras (proveedores, borradores y recepción que actualiza inventario) y reportes de solo lectura de ventas, compras e inventario.
+**Estado:** base funcional con autenticación y gestión de usuarios/roles, catálogo, inventario por lotes con costeo, clientes, ventas con descuento automático de stock, compras con recepción de inventario y reportes de ventas, compras e inventario con ganancia bruta.
 
 ## 1. Visión general
 
@@ -89,7 +89,7 @@ Estas reglas buscan evitar dependencias circulares y duplicación de lógica:
 1. Cada app es dueña de sus modelos, migraciones, formularios, vistas, URLs y pruebas.
 2. Las referencias entre modelos se harán con cadenas (`"catalogo.Producto"`) para evitar importaciones circulares.
 3. `catalogo` es dueño del maestro de productos. `inventario` referencia productos, pero no modifica sus datos maestros.
-4. `inventario` es el único módulo que altera existencias. Los cambios se hacen con `crear_lote()` y `registrar_movimiento()` de `apps/inventario/services.py`; compras y ventas usan esos mismos servicios dentro de sus transacciones.
+4. `inventario` es el único módulo que altera existencias. `crear_lote()` y `registrar_movimiento()` gestionan altas y movimientos; `consumir_stock_producto()` aplica la salida FEFO solicitada por ventas. Compras y ventas usan estos servicios dentro de sus transacciones.
 5. `compras` es dueño de `Proveedor`, `Compra` y `DetalleCompra`.
 6. `clientes` es dueño de `Cliente`. `ventas` podrá referenciarlo, pero no modificar sus datos maestros.
 7. `ventas` es dueño de `Venta` y `DetalleVenta`. En esta etapa el único medio de pago es efectivo, por lo que no existe un modelo `Pago` separado.
@@ -97,7 +97,7 @@ Estas reglas buscan evitar dependencias circulares y duplicación de lógica:
 9. `core` contiene infraestructura compartida, no reglas de negocio de otros módulos.
 10. Las operaciones que afecten varias tablas (venta + inventario, compra + inventario) se ejecutarán dentro de `transaction.atomic()` y con bloqueo de stock cuando corresponda.
 11. Las vistas deben mantenerse delgadas. Cuando una operación tenga varias reglas, se extraerá a un servicio del módulo correspondiente. El registro de ventas usa `apps/ventas/services.py`.
-12. `catalogo` es dueño del precio de venta; `ventas` guarda una copia histórica en `DetalleVenta` y no modifica el producto.
+12. `catalogo` es dueño del precio de venta; `ventas` guarda una copia histórica en `DetalleVenta` junto al costo real de adquisición consumido y no modifica el producto.
 
 ## 5. Flujo de venta
 
@@ -129,8 +129,14 @@ Reglas de esta etapa:
   puede modificarlo.
 - El pago es solo en efectivo. El total y el cambio se calculan en el servidor.
 - La venta es inmutable: no se edita, elimina ni anula desde la interfaz.
-- No se descuenta stock. La integración con `inventario` queda para una etapa
-  posterior.
+- El servicio de ventas crea los detalles y consume inventario dentro de la
+  misma transacción. El consumo sigue FEFO entre lotes activos no vencidos y
+  FIFO entre capas de costo de cada lote; si no hay stock suficiente, se
+  revierte toda la venta.
+- Cada detalle conserva el costo de adquisición asignado al consumo. Si el
+  costo es desconocido por tratarse de inventario heredado sin precio, el costo
+  queda vacío y la venta no se incluye en la ganancia reportada hasta completar
+  su costo.
 - El ticket se genera como HTML imprimible de 80 mm con CSS `@media print`; no
   se usa una librería PDF.
 
@@ -149,7 +155,7 @@ sequenceDiagram
     S->>DB: SELECT Lote FOR UPDATE
     S->>S: Valida lote activo, cantidad y stock suficiente
     S->>DB: UPDATE Lote.stock_actual
-    S->>DB: INSERT MovimientoInventario
+    S->>DB: INSERT MovimientoInventario + asignación de capas de costo
     S->>DB: COMMIT
     S-->>F: Movimiento registrado
 ```
@@ -164,6 +170,14 @@ Reglas de esta etapa:
   esté activo y aplica el signo del movimiento:
   `ENTRADA` y `AJUSTE_POSITIVO` suman; `SALIDA` y `AJUSTE_NEGATIVO` restan. El
   stock resultante nunca puede ser negativo.
+- Cada entrada con costo genera una capa de costo vinculada al movimiento. Las
+  ventas asignan cantidades a esas capas y conservan el costo usado en cada
+  salida. La compra recibida transmite el costo unitario registrado en su
+  detalle.
+- `crear_lote()` requiere costo unitario cuando se carga stock inicial. Los
+  lotes existentes se migran con capas de costo desconocido, sin estimar ni
+  inventar precios; el administrador puede completar el costo de existencias
+  pendientes desde la edición del lote.
 - El tipo `INICIAL` no se ofrece en el formulario manual; solo lo genera el alta
   del lote para evitar duplicar la carga inicial.
 - `MovimientoInventario` es inmutable: no se edita ni se elimina desde la

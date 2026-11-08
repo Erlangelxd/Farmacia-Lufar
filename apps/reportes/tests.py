@@ -16,7 +16,7 @@ from django.utils import timezone
 from apps.accounts.constants import ADMIN_GROUP
 from apps.catalogo.models import Producto
 from apps.compras.models import Compra, DetalleCompra, Proveedor
-from apps.inventario.models import Lote, MovimientoInventario
+from apps.inventario.models import CapaCosto, Lote, MovimientoInventario
 from apps.ventas.models import DetalleVenta, Venta
 
 
@@ -66,6 +66,17 @@ class ReportesBaseTestData(TestCase):
             fecha_vencimiento=hoy - timedelta(days=5),
             stock_actual=Decimal("2.00"),
         )
+        for lote, costo in (
+            (cls.lote_bajo, Decimal("10.00")),
+            (cls.lote_normal, Decimal("20.00")),
+            (cls.lote_vencido, Decimal("10.00")),
+        ):
+            CapaCosto.objects.create(
+                lote=lote,
+                cantidad_inicial=lote.stock_actual,
+                cantidad_restante=lote.stock_actual,
+                costo_unitario=costo,
+            )
 
         MovimientoInventario.objects.create(
             lote=cls.lote_normal,

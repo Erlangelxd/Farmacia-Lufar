@@ -77,6 +77,19 @@
           {% endif %}
         </div>
 
+        <div class="form-field">
+          <label for="{{ form.costo_unitario.id_for_label }}">
+            {{ form.costo_unitario.label }}
+          </label>
+          {{ form.costo_unitario }}
+          {% for error in form.costo_unitario.errors %}
+            <p class="field-error">{{ error }}</p>
+          {% endfor %}
+          {% if form.costo_unitario.help_text %}
+            <p class="field-help">{{ form.costo_unitario.help_text }}</p>
+          {% endif %}
+        </div>
+
         <div class="form-field form-field--full">
           <label for="{{ form.motivo.id_for_label }}">
             {{ form.motivo.label }}

@@ -5,6 +5,8 @@ from decimal import Decimal, InvalidOperation
 from django.core.exceptions import ValidationError
 from django.db import transaction
 
+from apps.inventario.services import consumir_stock_producto
+
 from .models import DetalleVenta, Venta
 
 TOTAL_MAXIMO = Decimal("9999999999.99")
@@ -29,8 +31,8 @@ def registrar_venta(
     """Registra una venta y sus detalles dentro de una sola transacción.
 
     ``lineas`` debe contener diccionarios con las claves ``producto`` y
-    ``cantidad``. El precio siempre se toma del producto para evitar que el
-    navegador pueda modificarlo.
+    ``cantidad``. El precio siempre se toma del catálogo y el inventario se
+    consume por FEFO; el costo real queda guardado en el detalle.
     """
     lineas = list(lineas)
     if not lineas:
@@ -101,18 +103,21 @@ def registrar_venta(
             monto_recibido=monto,
             total=total,
         )
-        DetalleVenta.objects.bulk_create(
-            [
-                DetalleVenta(
-                    venta=venta,
-                    producto=producto,
-                    codigo_producto=producto.codigo,
-                    nombre_producto=producto.nombre,
-                    cantidad=cantidad,
-                    precio_unitario=producto.precio_venta,
-                )
-                for producto, cantidad in lineas_validadas
-            ]
-        )
+        for producto, cantidad in lineas_validadas:
+            detalle = DetalleVenta.objects.create(
+                venta=venta,
+                producto=producto,
+                codigo_producto=producto.codigo,
+                nombre_producto=producto.nombre,
+                cantidad=cantidad,
+                precio_unitario=producto.precio_venta,
+            )
+            detalle.costo_total = consumir_stock_producto(
+                producto=producto,
+                cantidad=cantidad,
+                usuario=vendedor,
+                detalle_venta=detalle,
+            )
+            detalle.save(update_fields=["costo_total"])
 
     return venta

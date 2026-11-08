@@ -139,7 +139,27 @@
     <p class="stat-card__value">{{ unidades_total }}</p>
     <p class="stat-card__detail">Total de productos</p>
   </article>
+  {% if puede_ver_costos %}
+    <article class="stat-card stat-card--green">
+      <span class="stat-card__label">Ganancia bruta</span>
+      <p class="stat-card__value">Bs {{ ganancia_bruta|floatformat:2 }}</p>
+      <p class="stat-card__detail">{{ ventas_con_costo }} ventas con costo completo</p>
+    </article>
+    <article class="stat-card stat-card--amber">
+      <span class="stat-card__label">Ventas sin costo completo</span>
+      <p class="stat-card__value">{{ ventas_sin_costo }}</p>
+      <p class="stat-card__detail">No se incluyen en la ganancia</p>
+    </article>
+  {% endif %}
 </div>
+
+{% if puede_ver_costos and ventas_sin_costo %}
+  <div class="notice notice--warning" role="note">
+    La ganancia incluye solo ventas cuyas unidades tienen costo de adquisición
+    registrado. Completa el costo del inventario inicial para incorporar las
+    ventas restantes.
+  </div>
+{% endif %}
 
 <!-- Gráfico de ingresos por día -->
 {% if ventas_por_dia %}
@@ -175,6 +195,7 @@
               <th scope="col">Producto</th>
               <th scope="col">Unidades</th>
               <th scope="col">Ingresos</th>
+              {% if puede_ver_costos %}<th scope="col">Ganancia bruta</th>{% endif %}
             </tr>
           </thead>
           <tbody>
@@ -187,6 +208,17 @@
                 </td>
                 <td><strong>{{ p.unidades }}</strong></td>
                 <td>Bs {{ p.ingresos|stringformat:"0.2f" }}</td>
+                {% if puede_ver_costos %}
+                  <td>
+                    {% if p.unidades_sin_costo %}
+                      Parcial: Bs {{ p.ganancia_bruta|floatformat:2 }}
+                    {% elif p.ganancia_bruta is not None %}
+                      Bs {{ p.ganancia_bruta|floatformat:2 }}
+                    {% else %}
+                      <span class="text-muted">Sin costo</span>
+                    {% endif %}
+                  </td>
+                {% endif %}
               </tr>
             {% endfor %}
           </tbody>

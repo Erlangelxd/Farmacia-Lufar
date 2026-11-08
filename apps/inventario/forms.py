@@ -36,6 +36,44 @@ class LoteForm(forms.ModelForm):
             "inicial."
         ),
     )
+    costo_unitario_inicial = forms.DecimalField(
+        label="Costo unitario de adquisición",
+        max_digits=10,
+        decimal_places=2,
+        min_value=Decimal("0.00"),
+        required=False,
+        widget=forms.NumberInput(
+            attrs={
+                "class": "form-control",
+                "min": "0",
+                "step": "0.01",
+                "placeholder": "0.00",
+            }
+        ),
+        help_text=(
+            "Se registra como costo real del lote y se usa para calcular "
+            "la ganancia en ventas."
+        ),
+    )
+    costo_unitario_existencia = forms.DecimalField(
+        label="Costo unitario de las unidades actuales",
+        max_digits=10,
+        decimal_places=2,
+        min_value=Decimal("0.00"),
+        required=False,
+        widget=forms.NumberInput(
+            attrs={
+                "class": "form-control",
+                "min": "0",
+                "step": "0.01",
+                "placeholder": "0.00",
+            }
+        ),
+        help_text=(
+            "Solo se aplica a unidades actuales cuyo costo aún no está "
+            "registrado. El ajuste queda en el historial."
+        ),
+    )
 
     field_order = (
         "producto",
@@ -44,6 +82,8 @@ class LoteForm(forms.ModelForm):
         "fecha_vencimiento",
         "fecha_ingreso",
         "stock_inicial",
+        "costo_unitario_inicial",
+        "costo_unitario_existencia",
         "activo",
     )
 
@@ -114,6 +154,9 @@ class LoteForm(forms.ModelForm):
         # El stock no se edita: los cambios posteriores son movimientos.
         if self.instance.pk:
             self.fields.pop("stock_inicial", None)
+            self.fields.pop("costo_unitario_inicial", None)
+        else:
+            self.fields.pop("costo_unitario_existencia", None)
 
     def clean_codigo_lote(self) -> str:
         codigo = (self.cleaned_data.get("codigo_lote") or "").strip().upper()
@@ -149,6 +192,17 @@ class LoteForm(forms.ModelForm):
             )
 
         stock_inicial = cleaned_data.get("stock_inicial")
+        costo_unitario = cleaned_data.get("costo_unitario_inicial")
+        if (
+            not self.instance.pk
+            and stock_inicial
+            and stock_inicial > Decimal("0.00")
+            and costo_unitario is None
+        ):
+            self.add_error(
+                "costo_unitario_inicial",
+                "Ingresa el costo unitario de adquisición del stock inicial.",
+            )
         if (
             not self.instance.pk
             and not cleaned_data.get("activo")
@@ -212,6 +266,22 @@ class MovimientoForm(forms.Form):
             }
         ),
     )
+    costo_unitario = forms.DecimalField(
+        label="Costo unitario de adquisición",
+        max_digits=10,
+        decimal_places=2,
+        min_value=Decimal("0.00"),
+        required=False,
+        widget=forms.NumberInput(
+            attrs={
+                "class": "form-control",
+                "min": "0",
+                "step": "0.01",
+                "placeholder": "0.00",
+            }
+        ),
+        help_text="Obligatorio para entradas y ajustes positivos.",
+    )
     motivo = forms.CharField(
         label="Motivo",
         max_length=200,
@@ -239,6 +309,13 @@ class MovimientoForm(forms.Form):
         lote = cleaned_data.get("lote")
         tipo = cleaned_data.get("tipo")
         cantidad = cleaned_data.get("cantidad")
+        costo_unitario = cleaned_data.get("costo_unitario")
+
+        if tipo in MovimientoInventario.TIPOS_ENTRADA and costo_unitario is None:
+            self.add_error(
+                "costo_unitario",
+                "Ingresa el costo unitario de adquisición de las unidades.",
+            )
 
         if (
             lote is not None

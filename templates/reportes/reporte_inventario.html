@@ -29,9 +29,9 @@
     <p class="stat-card__detail">Suma de {{ total_lotes }} lote{{ total_lotes|pluralize }}</p>
   </article>
   <article class="stat-card stat-card--amber">
-    <span class="stat-card__label">Valor del inventario</span>
+    <span class="stat-card__label">Inventario a costo de adquisición</span>
     <p class="stat-card__value">Bs {{ valor_inventario|stringformat:"0.2f" }}</p>
-    <p class="stat-card__detail">A precio de venta</p>
+    <p class="stat-card__detail">Unidades sin costo: {{ unidades_sin_costo|floatformat:2 }}</p>
   </article>
   <article class="stat-card stat-card--blue">
     <span class="stat-card__label">Por vencer ({{ dias_por_vencer }} días)</span>
@@ -39,6 +39,16 @@
     <p class="stat-card__detail">Lote{{ total_por_vencer|pluralize }} con existencias</p>
   </article>
 </div>
+
+{% if unidades_sin_costo > 0 %}
+  <div class="notice notice--warning" role="note">
+    El valor mostrado incluye solo unidades con costo registrado. Hay
+    {{ unidades_sin_costo|floatformat:2 }} unidades cuyo costo debe completarse
+    desde el detalle del lote antes de que su venta pueda aportar una ganancia
+    completa al reporte.
+    <a href="{% url 'inventario:lotes' %}">Revisar lotes</a>.
+  </div>
+{% endif %}
 
 <!-- Filtros del catálogo -->
 <section class="card">
@@ -144,6 +154,7 @@
               <th scope="col">Producto</th>
               <th scope="col">Vence</th>
               <th scope="col">Stock</th>
+              <th scope="col">Costo unitario</th>
             </tr>
           </thead>
           <tbody>
@@ -153,6 +164,13 @@
                 <td>{{ lote.producto.nombre }}</td>
                 <td><strong>{{ lote.fecha_vencimiento|date:"d/m/Y" }}</strong></td>
                 <td>{{ lote.stock_actual|floatformat:2 }}</td>
+                <td>
+                  {% if lote.costo_unitario_promedio is not None %}
+                    Bs {{ lote.costo_unitario_promedio|floatformat:2 }}
+                  {% else %}
+                    <span class="text-muted">Sin costo</span>
+                  {% endif %}
+                </td>
               </tr>
             {% endfor %}
           </tbody>
@@ -188,6 +206,7 @@
           <th scope="col">Producto</th>
           <th scope="col">Venció</th>
           <th scope="col">Stock</th>
+          <th scope="col">Costo unitario</th>
         </tr>
       </thead>
       <tbody>
@@ -197,6 +216,13 @@
             <td>{{ lote.producto.nombre }}</td>
             <td>{{ lote.fecha_vencimiento|date:"d/m/Y" }}</td>
             <td>{{ lote.stock_actual|floatformat:2 }}</td>
+            <td>
+              {% if lote.costo_unitario_promedio is not None %}
+                Bs {{ lote.costo_unitario_promedio|floatformat:2 }}
+              {% else %}
+                <span class="text-muted">Sin costo</span>
+              {% endif %}
+            </td>
           </tr>
         {% endfor %}
       </tbody>
@@ -224,6 +250,7 @@
             <th scope="col">Lote</th>
             <th scope="col">Tipo</th>
             <th scope="col">Cantidad</th>
+            <th scope="col">Costo de adquisición</th>
             <th scope="col">Stock resultante</th>
             <th scope="col">Registrado por</th>
           </tr>
@@ -247,6 +274,13 @@
                 {% endif %}
               </td>
               <td>{{ movimiento.cantidad|floatformat:2 }}</td>
+              <td>
+                {% if movimiento.costo_total is not None %}
+                  Bs {{ movimiento.costo_total|floatformat:2 }}
+                {% else %}
+                  <span class="text-muted">Sin costo</span>
+                {% endif %}
+              </td>
               <td><strong>{{ movimiento.stock_resultante|floatformat:2 }}</strong></td>
               <td class="text-muted">{{ movimiento.usuario.get_full_name|default:movimiento.usuario.username }}</td>
             </tr>
@@ -283,6 +317,7 @@
               <th scope="col">Producto</th>
               <th scope="col">Unidades</th>
               <th scope="col">Ingresos</th>
+              <th scope="col">Ganancia bruta</th>
             </tr>
           </thead>
           <tbody>
@@ -295,6 +330,13 @@
                 </td>
                 <td><strong>{{ p.unidades_vendidas }}</strong></td>
                 <td>Bs {{ p.ingresos_generados|stringformat:"0.2f" }}</td>
+                <td>
+                  {% if p.unidades_sin_costo %}
+                    Parcial: Bs {{ p.ganancia_bruta|floatformat:2 }}
+                  {% else %}
+                    Bs {{ p.ganancia_bruta|floatformat:2 }}
+                  {% endif %}
+                </td>
               </tr>
             {% endfor %}
           </tbody>

@@ -9,12 +9,6 @@ from django.db.models import F, Q
 
 
 class Venta(models.Model):
-    """Venta confirmada de productos.
-
-    En esta etapa la venta es inmutable: no se edita ni se elimina desde la
-    interfaz. El stock se integrará cuando exista el módulo de inventario.
-    """
-
     class MetodoPago(models.TextChoices):
         EFECTIVO = "EFECTIVO", "Efectivo"
 
@@ -141,6 +135,17 @@ class DetalleVenta(models.Model):
         decimal_places=2,
         validators=[MinValueValidator(Decimal("0.00"))],
     )
+    costo_total = models.DecimalField(
+        "costo de adquisición total",
+        max_digits=14,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text=(
+            "Costo histórico de las unidades consumidas; vacío si alguna "
+            "existencia no tiene costo comprobable."
+        ),
+    )
     creado_en = models.DateTimeField(
         "fecha de registro",
         auto_now_add=True,
@@ -169,6 +174,13 @@ class DetalleVenta(models.Model):
     def subtotal(self) -> Decimal:
         """Importe de la línea."""
         return (self.precio_unitario or Decimal("0.00")) * self.cantidad
+
+    @property
+    def ganancia_bruta(self) -> Decimal | None:
+        """Ganancia de la línea cuando todo su costo de adquisición es conocido."""
+        if self.costo_total is None:
+            return None
+        return self.subtotal - self.costo_total
 
     def __str__(self) -> str:
         return f"{self.nombre_producto} x {self.cantidad}"

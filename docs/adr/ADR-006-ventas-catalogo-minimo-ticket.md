@@ -70,8 +70,9 @@ Quedan fuera de esta etapa:
 
 ### Negativas
 
-- El stock no se descuenta, por lo que el inventario todavía no refleja las
-  ventas.
+- **Decisión reemplazada:** esta versión ya descuenta automáticamente el
+  inventario mediante el servicio transaccional de ventas, usando FEFO para
+  seleccionar lotes. El detalle de venta conserva el costo de adquisición.
 - No se puede corregir ni anular una venta desde la interfaz; cualquier ajuste
   requerirá una etapa posterior con reglas contables.
 - El catálogo solo se mantiene desde Django Admin, lo que limita la operación
@@ -80,8 +81,9 @@ Quedan fuera de esta etapa:
 
 ### Riesgos
 
-- Vender productos sin stock disponible. Mitigación: el catálogo debe mantenerse
-  depurado y la integración con inventario es el siguiente paso.
+- El registro de ventas puede rechazarse si no hay existencias activas y no
+  vencidas suficientes. El servicio valida la disponibilidad y revierte toda
+  la operación si falta stock.
 - Cambios de precio que afecten ventas históricas. Mitigación: el detalle guarda
   una copia del precio y del nombre.
 - Crecimiento del listado de ventas. Mitigación: paginación, búsqueda y filtro

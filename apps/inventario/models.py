@@ -1,8 +1,7 @@
 """Modelos de inventario.
 
-La app es la única dueña del stock: las compras y las ventas no modifican
-existencias directamente, sino que registran movimientos a través de los
-servicios transaccionales correspondientes.
+La app es la única dueña del stock: compras y ventas lo actualizan mediante
+servicios transaccionales que registran movimientos y capas de costo.
 """
 
 from decimal import Decimal
@@ -11,7 +10,7 @@ from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.core.validators import MinValueValidator
 from django.db import models
-from django.db.models import Q
+from django.db.models import F, Q
 from django.utils import timezone
 
 
@@ -69,6 +68,39 @@ class Lote(models.Model):
 
     def __str__(self) -> str:
         return f"{self.producto} — lote {self.codigo_lote}"
+
+    @property
+    def valor_inventario_costo(self) -> Decimal | None:
+        """Costo de las unidades disponibles; None si alguna no tiene costo."""
+        capas = list(self.capas_costo.all())
+        if sum(
+            (capa.cantidad_restante for capa in capas), Decimal("0.00")
+        ) != self.stock_actual:
+            return None
+        if any(
+            capa.cantidad_restante > 0 and capa.costo_unitario is None
+            for capa in capas
+        ):
+            return None
+        return sum(
+            (
+                capa.cantidad_restante * capa.costo_unitario
+                for capa in capas
+                if capa.cantidad_restante > 0
+                and capa.costo_unitario is not None
+            ),
+            Decimal("0.00"),
+        ).quantize(Decimal("0.01"))
+
+    @property
+    def costo_unitario_promedio(self) -> Decimal | None:
+        """Costo promedio de las unidades restantes del lote."""
+        if self.stock_actual <= 0:
+            return None
+        valor = self.valor_inventario_costo
+        if valor is None:
+            return None
+        return (valor / self.stock_actual).quantize(Decimal("0.01"))
 
     def clean(self):
         """Normaliza el código y valida fechas, duplicados y desactivación."""
@@ -167,6 +199,14 @@ class MovimientoInventario(models.Model):
         decimal_places=2,
         validators=[MinValueValidator(Decimal("0.00"))],
     )
+    costo_total = models.DecimalField(
+        "costo de adquisición del movimiento",
+        max_digits=14,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text="Vacío cuando no existe costo histórico confiable.",
+    )
     detalle_venta = models.ForeignKey(
         "ventas.DetalleVenta",
         verbose_name="detalle de venta",
@@ -217,3 +257,154 @@ class MovimientoInventario(models.Model):
     def signo(self) -> int:
         """Signo que aplica el movimiento sobre el stock del lote."""
         return 1 if self.es_entrada else -1
+
+
+class CapaCosto(models.Model):
+    """Cantidad recibida de un lote a un costo unitario de adquisición."""
+
+    lote = models.ForeignKey(
+        Lote,
+        verbose_name="lote",
+        on_delete=models.PROTECT,
+        related_name="capas_costo",
+    )
+    movimiento_entrada = models.OneToOneField(
+        MovimientoInventario,
+        verbose_name="movimiento de entrada",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="capa_costo",
+    )
+    cantidad_inicial = models.DecimalField(
+        "unidades recibidas",
+        max_digits=12,
+        decimal_places=2,
+        validators=[MinValueValidator(Decimal("0.01"))],
+    )
+    cantidad_restante = models.DecimalField(
+        "unidades disponibles",
+        max_digits=12,
+        decimal_places=2,
+        validators=[MinValueValidator(Decimal("0.00"))],
+    )
+    costo_unitario = models.DecimalField(
+        "costo unitario de adquisición",
+        max_digits=10,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(Decimal("0.00"))],
+        help_text="Vacío para existencias anteriores sin costo comprobable.",
+    )
+    creado_en = models.DateTimeField("fecha de ingreso", auto_now_add=True)
+
+    class Meta:
+        verbose_name = "capa de costo"
+        verbose_name_plural = "capas de costo"
+        ordering = ("creado_en", "pk")
+        constraints = (
+            models.CheckConstraint(
+                condition=Q(cantidad_inicial__gt=0),
+                name="inventario_capa_cantidad_inicial_positiva",
+            ),
+            models.CheckConstraint(
+                condition=Q(cantidad_restante__gte=0)
+                & Q(cantidad_restante__lte=F("cantidad_inicial")),
+                name="inventario_capa_cantidad_restante_valida",
+            ),
+        )
+
+    def __str__(self) -> str:
+        costo = (
+            f"Bs {self.costo_unitario:.2f}"
+            if self.costo_unitario is not None
+            else "costo desconocido"
+        )
+        return f"{self.lote} — {self.cantidad_inicial:.2f} u. — {costo}"
+
+
+class AsignacionCostoInventario(models.Model):
+    """Trazabilidad de las capas de adquisición consumidas por una salida."""
+
+    movimiento = models.ForeignKey(
+        MovimientoInventario,
+        verbose_name="movimiento de salida",
+        on_delete=models.PROTECT,
+        related_name="asignaciones_costo",
+    )
+    capa = models.ForeignKey(
+        CapaCosto,
+        verbose_name="capa de costo",
+        on_delete=models.PROTECT,
+        related_name="asignaciones",
+    )
+    cantidad = models.DecimalField(
+        "unidades consumidas",
+        max_digits=12,
+        decimal_places=2,
+        validators=[MinValueValidator(Decimal("0.01"))],
+    )
+    costo_unitario = models.DecimalField(
+        "costo unitario aplicado",
+        max_digits=10,
+        decimal_places=2,
+        null=True,
+        blank=True,
+    )
+
+    class Meta:
+        verbose_name = "asignación de costo"
+        verbose_name_plural = "asignaciones de costo"
+        constraints = (
+            models.CheckConstraint(
+                condition=Q(cantidad__gt=0),
+                name="inventario_asignacion_cantidad_positiva",
+            ),
+            models.UniqueConstraint(
+                fields=("movimiento", "capa"),
+                name="inventario_asignacion_movimiento_capa_unica",
+            ),
+        )
+
+    def __str__(self) -> str:
+        return f"{self.cantidad:.2f} u. — {self.capa}"
+
+
+class AjusteCostoInventario(models.Model):
+    """Auditoría al completar el costo de existencias heredadas."""
+
+    lote = models.ForeignKey(
+        Lote,
+        verbose_name="lote",
+        on_delete=models.PROTECT,
+        related_name="ajustes_costo",
+    )
+    usuario = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        verbose_name="registrado por",
+        on_delete=models.PROTECT,
+        related_name="ajustes_costo_inventario",
+    )
+    cantidad = models.DecimalField(
+        "unidades valorizadas",
+        max_digits=12,
+        decimal_places=2,
+        validators=[MinValueValidator(Decimal("0.01"))],
+    )
+    costo_unitario = models.DecimalField(
+        "costo unitario asignado",
+        max_digits=10,
+        decimal_places=2,
+        validators=[MinValueValidator(Decimal("0.00"))],
+    )
+    motivo = models.CharField("motivo", max_length=200, blank=True)
+    fecha = models.DateTimeField("fecha", auto_now_add=True)
+
+    class Meta:
+        verbose_name = "ajuste de costo de inventario"
+        verbose_name_plural = "ajustes de costo de inventario"
+        ordering = ("-fecha", "-pk")
+
+    def __str__(self) -> str:
+        return f"{self.lote} — {self.cantidad:.2f} u."

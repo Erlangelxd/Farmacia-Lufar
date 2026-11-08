@@ -8,10 +8,10 @@ Python, Django, SQLite y plantillas renderizadas en el servidor.
 > usuarios y roles, navegación, dashboard operativo, módulo de catálogo con
 > productos y categorías, módulo de inventario con lotes, movimientos y alertas
 > de stock, módulo de clientes con registro y consulta, módulo de ventas con
-> cálculo de totales y ticket imprimible, módulo de compras con proveedores y
-> recepción que actualiza inventario, reportes de solo lectura y esquema de
-> datos completo. **No incluye todavía integración automática de stock con
-> ventas ni edición o anulación de ventas.**
+> cálculo de totales y ticket imprimible con descuento automático de stock,
+> módulo de compras con proveedores y recepción que actualiza inventario,
+> reportes de solo lectura con ganancia bruta y esquema de datos completo.
+> No incluye edición o anulación de ventas.
 
 ## 1. Objetivo y alcance inicial
 
@@ -46,14 +46,16 @@ autenticación, la navegación ni la organización del proyecto.
   con stock inicial, edición de datos, movimientos de entrada, salida y ajuste,
   y alertas de stock bajo y vencimientos.
 - Módulo de ventas: registro con líneas de detalle, cálculo de total y cambio,
-  listado con búsqueda y filtro por cliente, ficha de consulta y ticket
-  imprimible de 80 mm.
+  descuento automático de lotes por vencimiento, costo de adquisición por
+  detalle, listado con búsqueda y filtro por cliente, ficha de consulta y
+  ticket imprimible de 80 mm.
 - Módulo de compras: proveedores con alta, edición y activación, compras con
   líneas de detalle, edición y anulación de borradores, y recepción sobre lotes
   existentes que registra entradas de inventario.
 - Módulo de reportes de solo lectura: ventas por periodo y vendedor, compras
   por proveedor y estado, e inventario con stock por lote, valor del
-  inventario, alertas de stock bajo y vencimientos.
+  inventario a costo de adquisición, ganancia bruta, alertas de stock bajo y
+  vencimientos.
 - Estilos y JavaScript locales, sin CDN.
 - Pruebas transversales y pruebas propias de clientes, catálogo, inventario,
   compras y ventas.
@@ -64,8 +66,6 @@ autenticación, la navegación ni la organización del proyecto.
 - Edición, eliminación o anulación de ventas.
 - Edición y eliminación de clientes; su historial comercial ya se muestra en la
   ficha.
-- Integración automática del stock con ventas; la recepción de compras ya
-  actualiza inventario.
 - Facturación fiscal, descuentos y reglas comerciales avanzadas.
 - Recuperación de contraseña por correo.
 - Despliegue en producción, HTTPS y backups automáticos.
@@ -111,7 +111,7 @@ Decisiones importantes:
 - **Inventario es el único dueño de las existencias.** Los cambios de stock se
   realizan con los servicios transaccionales de `apps/inventario/services.py`,
   que actualizan el lote y registran un movimiento inmutable. Compras y ventas
-  deberán usar esos mismos servicios para no alterar el stock directamente.
+  usan esos mismos servicios dentro de sus transacciones.
 - **El catálogo tiene CRUD visual para productos y categorías.** `Producto`
   pertenece a una categoría y puede referenciar laboratorio, forma farmacéutica
   y presentación. El Vendedor solo consulta; el Administrador crea, edita y
@@ -129,7 +129,13 @@ Decisiones importantes:
   el cambio; no se procesan tarjetas ni otros medios.
 - **La venta conserva una copia histórica del producto.** Cada detalle guarda
   código, nombre y precio unitario del momento de la venta, aunque el catálogo
-  cambie después. El stock no se descuenta todavía.
+  cambie después. La venta consume stock activo por FEFO (vence primero, sale
+  primero) y FIFO por capa de costo dentro de cada lote; el detalle conserva el
+  costo de adquisición usado para calcular la ganancia bruta.
+- **Los costos heredados no se inventan.** Las existencias previas sin costo
+  quedan identificadas como costo desconocido hasta que un administrador
+  registre su costo real; los reportes separan esas unidades y excluyen ventas
+  sin costo completo del cálculo de ganancia.
 - **El ticket es HTML imprimible de 80 mm.** Se genera con plantillas y CSS de
   impresión locales, sin librerías PDF ni CDN.
 
@@ -596,12 +602,17 @@ el paso a PostgreSQL si habrá varios usuarios concurrentes.
 ├── static/
 │   ├── css/styles.css
 │   ├── js/app.js
+│   ├── js/compras.js
 │   ├── js/ventas.js
 │   └── img/logo.svg
 ├── tests/
 │   └── test_smoke.py
 └── docs/
     ├── ARCHITECTURE.md
+    ├── diccionario-de-datos.md
+    ├── modelo-er-relacional.pdf
+    ├── modelo-er-relacional.tex
+    ├── script-creacion-bd.sql
     └── adr/
 ```
 
@@ -636,8 +647,8 @@ el paso a PostgreSQL si habrá varios usuarios concurrentes.
   interfaz. El admin de ventas es de solo lectura.
 - El pago es solo en efectivo. La venta registra el monto recibido y calcula el
   cambio; no se procesan tarjetas ni otros medios.
-- La venta todavía no descuenta stock. La integración se hará usando los
-  servicios de `inventario`.
+- La venta descuenta automáticamente lotes por FEFO y registra la asignación de
+  costos por FIFO; la compra recibida aporta costo unitario al inventario.
 - El ticket es un comprobante interno de 80 mm; no es una factura fiscal.
 - SQLite es suficiente para la etapa local; no se asume concurrencia alta.
 - No se implementaron impuestos, descuentos ni facturación fiscal.
@@ -661,4 +672,6 @@ el paso a PostgreSQL si habrá varios usuarios concurrentes.
 - [ADR-007: Catálogo visual de productos y categorías](docs/adr/ADR-007-catalogo-visual-productos-categorias.md)
 - [ADR-008: Inventario por lotes con movimientos transaccionales](docs/adr/ADR-008-inventario-lotes-movimientos.md)
 - [ADR-009: Compras, proveedores y recepción sobre lotes](docs/adr/ADR-009-compras-proveedores-recepcion.md)
+- [Script de creación de la base de datos (SQLite)](docs/script-creacion-bd.sql)
+- [Diccionario de datos](docs/diccionario-de-datos.md)
 - [CHANGELOG](CHANGELOG.md)

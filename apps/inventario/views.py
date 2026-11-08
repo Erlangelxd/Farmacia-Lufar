@@ -17,9 +17,13 @@ from apps.catalogo.models import Producto
 from apps.core.mixins import RoleRequiredMixin
 
 from .forms import LoteForm, MovimientoForm
-from .models import Lote, MovimientoInventario
+from .models import CapaCosto, Lote, MovimientoInventario
 from .selectors import productos_con_stock_bajo, stock_por_producto
-from .services import crear_lote, registrar_movimiento
+from .services import (
+    crear_lote,
+    registrar_costo_existencia,
+    registrar_movimiento,
+)
 
 ADMIN_ROLES = (ADMIN_GROUP,)
 DIAS_POR_VENCER = 30
@@ -161,7 +165,12 @@ class LoteListView(RoleRequiredMixin, ListView):
     paginate_by = 20
 
     def get_queryset(self):
-        queryset = super().get_queryset().select_related("producto")
+        queryset = (
+            super()
+            .get_queryset()
+            .select_related("producto")
+            .prefetch_related("capas_costo")
+        )
         busqueda = self.request.GET.get("q", "").strip()
         estado = self.request.GET.get("estado", "activos").strip()
         vencimiento = self.request.GET.get("vencimiento", "todos").strip()
@@ -247,6 +256,7 @@ class LoteCreateView(RoleRequiredMixin, CreateView):
                 fecha_vencimiento=datos.get("fecha_vencimiento"),
                 fecha_ingreso=datos.get("fecha_ingreso"),
                 stock_inicial=datos.get("stock_inicial") or Decimal("0.00"),
+                costo_unitario=datos.get("costo_unitario_inicial"),
                 activo=datos.get("activo", True),
                 usuario=self.request.user,
             )
@@ -292,6 +302,20 @@ class LoteUpdateView(RoleRequiredMixin, UpdateView):
         return reverse("inventario:lotes")
 
     def form_valid(self, form):
+        costo_existencia = form.cleaned_data.get("costo_unitario_existencia")
+        if costo_existencia is not None:
+            try:
+                registrar_costo_existencia(
+                    lote=self.object,
+                    costo_unitario=costo_existencia,
+                    usuario=self.request.user,
+                )
+            except ValidationError as error:
+                _agregar_errores_al_formulario(
+                    form,
+                    error,
+                )
+                return self.form_invalid(form)
         response = super().form_valid(form)
         messages.success(
             self.request,
@@ -310,6 +334,11 @@ class LoteUpdateView(RoleRequiredMixin, UpdateView):
                 ),
                 "submit_label": "Guardar cambios",
                 "es_creacion": False,
+                "hay_stock_sin_costo": CapaCosto.objects.filter(
+                    lote=self.object,
+                    cantidad_restante__gt=0,
+                    costo_unitario__isnull=True,
+                ).exists(),
             }
         )
         return context
@@ -431,6 +460,7 @@ class MovimientoCreateView(RoleRequiredMixin, FormView):
                 cantidad=datos["cantidad"],
                 usuario=self.request.user,
                 motivo=datos.get("motivo", ""),
+                costo_unitario=datos.get("costo_unitario"),
             )
         except ValidationError as error:
             _agregar_errores_al_formulario(form, error)

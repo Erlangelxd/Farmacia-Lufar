@@ -285,6 +285,7 @@ def recibir_compra(
             cantidad=detalle.cantidad,
             usuario=usuario,
             motivo=f"Recepción de compra {compra.numero}",
+            costo_unitario=detalle.costo_unitario,
         )
         detalle.lote = lote
         detalle.save(update_fields=["lote"])

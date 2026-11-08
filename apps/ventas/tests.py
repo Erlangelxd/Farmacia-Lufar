@@ -12,6 +12,7 @@ from django.urls import reverse
 from apps.accounts.constants import SELLER_GROUP
 from apps.catalogo.models import Producto
 from apps.clientes.models import Cliente
+from apps.inventario.services import crear_lote
 
 from .forms import DetalleVentaFormSet, VentaForm
 from .models import DetalleVenta, Venta
@@ -59,6 +60,14 @@ class VentaBaseTestData(TestCase):
             precio_venta=Decimal("3.00"),
             activo=False,
         )
+        for producto in (cls.producto_a, cls.producto_b):
+            crear_lote(
+                producto=producto,
+                codigo_lote=f"TEST-{producto.codigo}",
+                stock_inicial="100.00",
+                costo_unitario="2.00",
+                usuario=cls.seller_user,
+            )
 
 
 class VentaServiceTests(VentaBaseTestData):
@@ -87,6 +96,35 @@ class VentaServiceTests(VentaBaseTestData):
         self.assertEqual(detalle_a.nombre_producto, "Paracetamol 500 mg")
         self.assertEqual(detalle_a.precio_unitario, Decimal("5.50"))
         self.assertEqual(detalle_a.subtotal, Decimal("11.00"))
+        self.assertEqual(detalle_a.costo_total, Decimal("4.00"))
+        self.assertEqual(detalle_a.ganancia_bruta, Decimal("7.00"))
+        lote_a = self.producto_a.lotes.get()
+        lote_b = self.producto_b.lotes.get()
+        self.assertEqual(lote_a.stock_actual, Decimal("98.00"))
+        self.assertEqual(lote_b.stock_actual, Decimal("99.00"))
+        movimiento_salida = lote_a.movimientos.get(
+            detalle_venta=detalle_a
+        )
+        self.assertEqual(movimiento_salida.costo_total, Decimal("4.00"))
+
+    def test_rechaza_venta_sin_stock_y_revierte_la_venta(self):
+        producto_sin_stock = Producto.objects.create(
+            codigo="P-SIN-STOCK",
+            nombre="Producto sin existencias",
+            precio_venta=Decimal("3.00"),
+        )
+        with self.assertRaises(ValidationError) as contexto:
+            registrar_venta(
+                vendedor=self.seller_user,
+                cliente=self.cliente,
+                metodo_pago=Venta.MetodoPago.EFECTIVO,
+                monto_recibido=Decimal("3.00"),
+                lineas=[{"producto": producto_sin_stock, "cantidad": 1}],
+            )
+
+        self.assertIn("Stock insuficiente", " ".join(contexto.exception.messages))
+        self.assertFalse(Venta.objects.exists())
+        self.assertFalse(producto_sin_stock.lotes.exists())
 
     def test_registra_venta_sin_cliente(self):
         venta = registrar_venta(
@@ -263,9 +301,9 @@ class VentaServiceTests(VentaBaseTestData):
         )
         self.assertEqual(venta.cambio, Decimal("0.00"))
 
-    def test_rollback_si_falla_la_creacion_de_detalles(self):
+    def test_rollback_si_falla_el_consumo_de_inventario(self):
         with patch(
-            "apps.ventas.services.DetalleVenta.objects.bulk_create",
+            "apps.ventas.services.consumir_stock_producto",
             side_effect=RuntimeError("fallo simulado"),
         ):
             with self.assertRaises(RuntimeError):
@@ -603,15 +641,17 @@ class VentaViewTests(VentaBaseTestData):
         self.assertNotContains(response, self.venta.numero)
 
     def test_listado_vacio(self):
-        Venta.objects.all().delete()
-        response = self.client.get(reverse("ventas:index"))
+        response = self.client.get(
+            reverse("ventas:index"), {"q": "sin coincidencias"}
+        )
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "Aún no hay ventas registradas")
-        self.assertContains(response, "Registrar primera venta")
+        self.assertContains(response, "No encontramos ventas")
+        self.assertContains(response, "Limpiar filtros")
 
     def test_paginacion_del_listado(self):
-        Venta.objects.all().delete()
-        for _ in range(25):
+        # setUpTestData aporta una venta completa con trazabilidad de stock.
+        # Se agregan 24 filas para completar 25 sin borrar movimientos protegidos.
+        for _ in range(24):
             Venta.objects.create(
                 vendedor=self.seller_user,
                 metodo_pago=Venta.MetodoPago.EFECTIVO,

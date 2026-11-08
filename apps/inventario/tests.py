@@ -81,6 +81,7 @@ class InventarioBaseTestData(TestCase):
             "fecha_vencimiento": "",
             "fecha_ingreso": timezone.localdate().isoformat(),
             "stock_inicial": "0.00",
+            "costo_unitario_inicial": "2.00",
             "activo": "on",
         }
         data.update(overrides)
@@ -91,6 +92,7 @@ class InventarioBaseTestData(TestCase):
             "lote": self.lote.pk,
             "tipo": MovimientoInventario.Tipo.ENTRADA,
             "cantidad": "5.00",
+            "costo_unitario": "2.00",
             "motivo": "Compra de prueba",
         }
         data.update(overrides)
@@ -189,6 +191,7 @@ class InventarioServiceTests(InventarioBaseTestData):
             codigo_lote="  l-100  ",
             fecha_vencimiento=timezone.localdate() + timedelta(days=60),
             stock_inicial="12.50",
+            costo_unitario="2.00",
             usuario=self.admin_user,
         )
 
@@ -245,6 +248,7 @@ class InventarioServiceTests(InventarioBaseTestData):
             cantidad="5.00",
             usuario=self.admin_user,
             motivo="  Compra   de prueba  ",
+            costo_unitario="2.50",
         )
 
         self.lote.refresh_from_db()
@@ -269,6 +273,7 @@ class InventarioServiceTests(InventarioBaseTestData):
             tipo=MovimientoInventario.Tipo.AJUSTE_POSITIVO,
             cantidad="3.00",
             usuario=self.admin_user,
+            costo_unitario="2.50",
         )
         registrar_movimiento(
             lote=self.lote,
@@ -606,6 +611,7 @@ class InventarioViewTests(InventarioBaseTestData):
             cantidad="5.00",
             usuario=self.admin_user,
             motivo="Compra de proveedor",
+            costo_unitario="2.00",
         )
         registrar_movimiento(
             lote=self.lote,
